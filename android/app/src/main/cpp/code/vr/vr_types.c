@@ -278,8 +278,6 @@ void ovrApp_HandleSessionStateChanges(ovrApp* app, XrSessionState state) {
         OXR(result = xrBeginSession(app->Session, &sessionBeginInfo));
 
         app->SessionActive = (result == XR_SUCCESS);
-        ALOGV("xrBeginSession: result %d, SessionActive %d, viewConfig %d",
-              result, (int)app->SessionActive, app->ViewportConfig.viewConfigurationType);
 
         // Set session state once we have entered VR mode and have a valid session object.
         if (app->SessionActive) {

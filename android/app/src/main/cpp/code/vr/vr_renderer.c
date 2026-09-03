@@ -377,11 +377,6 @@ void VR_DrawFrame( engine_t* engine ) {
             VR_Recenter(engine);
         }
     }
-    static int loggedSessionActive = -1;
-    if (loggedSessionActive != (int)engine->appState.SessionActive) {
-        loggedSessionActive = (int)engine->appState.SessionActive;
-        ALOGV("VR_DrawFrame: SessionActive now %d", loggedSessionActive);
-    }
     if (engine->appState.SessionActive == GL_FALSE) {
         return;
     }
@@ -403,12 +398,6 @@ void VR_DrawFrame( engine_t* engine ) {
 
     OXR(xrWaitFrame(engine->appState.Session, &waitFrameInfo, &frameState));
     engine->predictedDisplayTime = frameState.predictedDisplayTime;
-
-    static int loggedShouldRender = -1;
-    if (loggedShouldRender != (int)frameState.shouldRender) {
-        loggedShouldRender = (int)frameState.shouldRender;
-        ALOGV("xrWaitFrame: shouldRender now %d", loggedShouldRender);
-    }
 
     // Get the HMD pose, predicted for the middle of the time period during which
     // the new eye images will be displayed. The number of frames predicted ahead
