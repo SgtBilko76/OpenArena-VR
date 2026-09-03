@@ -39,7 +39,7 @@ layout(shared) uniform ViewMatrices
 };
 layout(shared) uniform ProjectionMatrix
 {
-    uniform mat4 u_ProjectionMatrix;
+    uniform mat4 u_ProjectionMatrices[NUM_VIEWS];
 };
 
 varying float   var_Scale;
@@ -136,7 +136,7 @@ void main()
 	position.xyz = DeformPosition(position.xyz, normal, attr_TexCoord0.st);
 #endif
 
-	gl_Position = u_ProjectionMatrix * (u_ViewMatrices[gl_ViewID_OVR] * (u_ModelMatrix * vec4(position, 1.0)));
+	gl_Position = u_ProjectionMatrices[gl_ViewID_OVR] * (u_ViewMatrices[gl_ViewID_OVR] * (u_ModelMatrix * vec4(position, 1.0)));
 
 	var_Scale = CalcFog(position) * u_Color.a * u_Color.a;
 }

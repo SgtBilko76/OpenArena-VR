@@ -30,7 +30,7 @@
 
 typedef union {
     XrCompositionLayerProjection Projection;
-    XrCompositionLayerCylinderKHR Cylinder;
+    XrCompositionLayerQuad Quad;
 } ovrCompositorLayer_Union;
 
 enum { ovrMaxLayerCount = 1 };

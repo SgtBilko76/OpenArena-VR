@@ -85,7 +85,9 @@ typedef struct {
 	void	(*EndFrame)( int *frontEndMsec, int *backEndMsec );
 
 #if __ANDROID__
-	void	(*SetVRHeadsetParms)( const float projectionMatrix[4][4],
+	void	(*SetVRHeadsetParms)( const float projectionMatrixLeft[4][4],
+								  const float projectionMatrixRight[4][4],
+								  const float projectionMatrixCull[4][4],
 								  const float nonVRProjectionMatrix[4][4],
 								  int renderBuffer );
 #endif

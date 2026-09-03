@@ -747,7 +747,10 @@ R_SetupProjection
 */
 void R_SetupProjection(viewParms_t *dest, float zProj, float zFar, qboolean computeFrustum)
 {
-	memcpy(&dest->projectionMatrix, &tr.vrParms.projection, sizeof(dest->projectionMatrix));
+	// The eyes have asymmetric, differing frusta. This matrix drives CPU-side culling and the
+	// flare maths, so it must be the union of both eyes -- one eye's frustum would cull geometry
+	// the other eye can still see. The GPU gets the real per-eye matrices via tr.vrParms.projection.
+	memcpy(&dest->projectionMatrix, &tr.vrParms.cullProjection, sizeof(dest->projectionMatrix));
 
 	// Now that we have all the data for the projection matrix we can also setup the view frustum.
 	if(computeFrustum)
@@ -783,8 +786,6 @@ void R_SetupProjectionZ(viewParms_t *dest)
 		float	plane2[4];
 		vec4_t q, c;
 
-		Mat4Copy(tr.vrParms.projection, tr.vrParms.mirrorProjection);
-
 		// transform portal plane into camera space
 		plane[0] = dest->portalPlane.normal[0];
 		plane[1] = dest->portalPlane.normal[1];
@@ -796,19 +797,28 @@ void R_SetupProjectionZ(viewParms_t *dest)
 		plane2[2] = -DotProduct (dest->or.axis[0], plane);
 		plane2[3] = DotProduct (plane, dest->or.origin) - plane[3];
 
-		// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
-		// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
-		q[0] = (SGN(plane2[0]) + dest->projectionMatrix[8]) / dest->projectionMatrix[0];
-		q[1] = (SGN(plane2[1]) + dest->projectionMatrix[9]) / dest->projectionMatrix[5];
-		q[2] = -1.0f;
-		q[3] = (1.0f + dest->projectionMatrix[10]) / dest->projectionMatrix[14];
+		// Each eye needs its own clip plane, derived from its own projection.
+		for (int eye = 0; eye < 2; eye++)
+		{
+			float *eyeProjection = tr.vrParms.projection[eye];
+			float *mirror = tr.vrParms.mirrorProjection[eye];
 
-		VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
+			Mat4Copy(eyeProjection, mirror);
 
-		tr.vrParms.mirrorProjection[2]  = c[0];
-		tr.vrParms.mirrorProjection[6]  = c[1];
-		tr.vrParms.mirrorProjection[10] = c[2] + 1.0f;
-		tr.vrParms.mirrorProjection[14] = c[3];
+			// Lengyel, Eric. "Modifying the Projection Matrix to Perform Oblique Near-plane Clipping".
+			// Terathon Software 3D Graphics Library, 2004. http://www.terathon.com/code/oblique.html
+			q[0] = (SGN(plane2[0]) + eyeProjection[8]) / eyeProjection[0];
+			q[1] = (SGN(plane2[1]) + eyeProjection[9]) / eyeProjection[5];
+			q[2] = -1.0f;
+			q[3] = (1.0f + eyeProjection[10]) / eyeProjection[14];
+
+			VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
+
+			mirror[2]  = c[0];
+			mirror[6]  = c[1];
+			mirror[10] = c[2] + 1.0f;
+			mirror[14] = c[3];
+		}
 	}
 
 }

@@ -513,9 +513,13 @@ void R_Mat4Transpose( const float in[4][4], float* out ) {
 	}
 }
 
-void RE_SetVRHeadsetParms( const float projectionMatrix[4][4],  const float nonVRProjectionMatrix[4][4],
+void RE_SetVRHeadsetParms( const float projectionMatrixLeft[4][4],
+        const float projectionMatrixRight[4][4], const float projectionMatrixCull[4][4],
+        const float nonVRProjectionMatrix[4][4],
         int renderBuffer ) {
-	R_Mat4Transpose(projectionMatrix, tr.vrParms.projection);
+	R_Mat4Transpose(projectionMatrixLeft, tr.vrParms.projection[0]);
+	R_Mat4Transpose(projectionMatrixRight, tr.vrParms.projection[1]);
+	R_Mat4Transpose(projectionMatrixCull, tr.vrParms.cullProjection);
 	R_Mat4Transpose(nonVRProjectionMatrix, tr.vrParms.monoVRProjection);
 	tr.vrParms.renderBuffer = renderBuffer;
 	tr.vrParms.valid = qtrue;

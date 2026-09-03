@@ -252,14 +252,15 @@ static void GLSL_ViewMatricesUniformBuffer(const float eyeView[32], const float 
 GLSL_ProjectionMatricesUniformBuffer
 ====================
 */
-static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer, const float value[16]) {
+static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer,
+		const float left[16], const float right[16]) {
 
 	// Update the scene matrices.
 	qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer);
 	float* projectionMatrix = (float*)qglMapBufferRange(
 			GL_UNIFORM_BUFFER,
 			0,
-			16 * sizeof(float),
+			2 * 16 * sizeof(float),
 			GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
 	if (projectionMatrix == NULL)
@@ -268,7 +269,8 @@ static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer,
 		return;
 	}
 
-	memcpy((char*)projectionMatrix, value, 16 * sizeof(float));
+	memcpy((char*)projectionMatrix, left, 16 * sizeof(float));
+	memcpy((char*)(projectionMatrix + 16), right, 16 * sizeof(float));
 
 	qglUnmapBuffer(GL_UNIFORM_BUFFER);
 	qglBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -1100,7 +1102,7 @@ void GLSL_InitGPUShaders(void)
 		qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer[i]);
 		qglBufferData(
 				GL_UNIFORM_BUFFER,
-				16 * sizeof(float),
+				2 * 16 * sizeof(float),
 				NULL,
 				GL_STATIC_DRAW);
 		qglBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -1701,28 +1703,61 @@ void GLSL_PrepareUniformBuffers(void)
 
     Mat4Ortho(0, width, height, 0, 0, 1, orthoProjectionMatrix);
 
-    //ortho projection matrices
-    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[FULLSCREEN_ORTHO_PROJECTION],
-            orthoProjectionMatrix);
-    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[STEREO_ORTHO_PROJECTION],
-            orthoProjectionMatrix);
+    // The eye frusta are asymmetric, so an eye's optical axis is NOT at the centre of its image:
+    // it lands at NDC (-P[8], -P[9]) of that eye's projection. Content drawn identically to both
+    // eyes -- 2D overlays and HUD models -- has to be moved there, otherwise the same pixel means
+    // a different direction in each eye and the two images will not fuse.
+    float orthoEye[2][16];
+    float monoEye[2][16];
+    for (int eye = 0; eye < 2; eye++)
+    {
+        // Ortho leaves w at 1, so the NDC offset is just a translation.
+        Mat4Copy(orthoProjectionMatrix, orthoEye[eye]);
+        orthoEye[eye][12] -= tr.vrParms.projection[eye][8];
+        orthoEye[eye][13] -= tr.vrParms.projection[eye][9];
 
+        // A perspective matrix carries its NDC offset in the principal-point terms, so the mono
+        // frustum keeps its own field of view and simply inherits the eye's off-centre axis.
+        Mat4Copy(tr.vrParms.monoVRProjection, monoEye[eye]);
+        monoEye[eye][8] += tr.vrParms.projection[eye][8];
+        monoEye[eye][9] += tr.vrParms.projection[eye][9];
+    }
+
+    //ortho projection matrices
+    // On the screen layer the eye projections are centred, so these offsets fall out to zero.
+    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[FULLSCREEN_ORTHO_PROJECTION],
+            orthoEye[0], orthoEye[1]);
+
+    // Only used with vr_hudDrawStatus 2, which draws straight into the eye images.
+    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[STEREO_ORTHO_PROJECTION],
+            orthoEye[0], orthoEye[1]);
+
+    // Renders into the offscreen HUD texture, not into an eye, so it stays centred.
     float hudOrthoProjectionMatrix[16];
     Mat4Ortho(0, 640, 480, 0, 0, 1, hudOrthoProjectionMatrix);
     GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[HUDBUFFER_ORTHO_PROJECTION],
-            hudOrthoProjectionMatrix);
+            hudOrthoProjectionMatrix, hudOrthoProjectionMatrix);
 
-    //VR projection matrix
+    //VR projection matrix - asymmetric, so one per eye
     GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
-            tr.vrParms.projection);
+            tr.vrParms.projection[0], tr.vrParms.projection[1]);
 
     //Mirror VR projection matrix
 	GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MIRROR_VR_PROJECTION],
-                                         tr.vrParms.mirrorProjection);
+                                         tr.vrParms.mirrorProjection[0], tr.vrParms.mirrorProjection[1]);
 
-    //Used for drawing models
-    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MONO_VR_PROJECTION],
-                                         tr.vrParms.monoVRProjection);
+    //Used for drawing models. With vr_hudDrawStatus 2 these go straight into the eye images and
+    //need the per-eye axis; otherwise they land in the offscreen HUD texture and must stay centred.
+    if (vr_hudDrawStatus->integer == 2)
+    {
+        GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MONO_VR_PROJECTION],
+                                             monoEye[0], monoEye[1]);
+    }
+    else
+    {
+        GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MONO_VR_PROJECTION],
+                                             tr.vrParms.monoVRProjection, tr.vrParms.monoVRProjection);
+    }
 
     //Set all view matrices
 	GLSL_ViewMatricesUniformBuffer(tr.viewParms.world.eyeViewMatrix, tr.viewParms.world.modelView);

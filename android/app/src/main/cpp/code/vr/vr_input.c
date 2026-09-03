@@ -1313,6 +1313,50 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
     }
 }
 
+#define WEAPON_CHEAT_HOLD_MS 3000
+
+/*
+====================
+IN_VRWeaponCheat
+
+Both triggers and both grips held together for three seconds arms the player. Single player
+only, and never while a menu is up, so it cannot fire during a match or while navigating the UI.
+====================
+*/
+static void IN_VRWeaponCheat( qboolean leftGrip, qboolean rightGrip,
+                              qboolean leftTrigger, qboolean rightTrigger )
+{
+    static int holdStartTime = 0;
+    static qboolean alreadyGiven = qfalse;
+
+    qboolean held = leftGrip && rightGrip && leftTrigger && rightTrigger;
+
+    if (!held || !vr.single_player || vr.virtual_screen) {
+        holdStartTime = 0;
+        alreadyGiven = qfalse;
+        return;
+    }
+
+    if (holdStartTime == 0) {
+        holdStartTime = Sys_Milliseconds();
+        return;
+    }
+
+    if (alreadyGiven || Sys_Milliseconds() - holdStartTime < WEAPON_CHEAT_HOLD_MS) {
+        return;
+    }
+
+    alreadyGiven = qtrue;
+
+    // "give" is refused unless the server has cheats on, and a single player map starts without
+    // them. Turning them on leaves them on for the rest of the map, exactly as "devmap" does.
+    Cvar_Set("sv_cheats", "1");
+    Cbuf_AddText("give weapons\n");
+    Cbuf_AddText("give ammo\n");
+
+    VR_Vibrate(400, 3, 1.0);
+}
+
 void IN_VRInputFrame( void )
 {
 	if (controllerInit == qfalse) {
@@ -1358,9 +1402,15 @@ void IN_VRInputFrame( void )
     //index finger click
     XrActionStateBoolean indexState;
     indexState = GetActionStateBoolean(indexLeftAction);
-    IN_VRTriggers(qfalse, indexState.currentState ? 1 : 0);
+    qboolean leftTrigger = indexState.currentState ? qtrue : qfalse;
+    IN_VRTriggers(qfalse, leftTrigger ? 1 : 0);
     indexState = GetActionStateBoolean(indexRightAction);
-    IN_VRTriggers(qtrue, indexState.currentState ? 1 : 0);
+    qboolean rightTrigger = indexState.currentState ? qtrue : qfalse;
+    IN_VRTriggers(qtrue, rightTrigger ? 1 : 0);
+
+    IN_VRWeaponCheat((lButtons & ovrButton_GripTrigger) ? qtrue : qfalse,
+                     (rButtons & ovrButton_GripTrigger) ? qtrue : qfalse,
+                     leftTrigger, rightTrigger);
 
     //thumbstick
     XrActionStateVector2f moveJoystickState;

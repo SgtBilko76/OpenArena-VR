@@ -352,6 +352,18 @@ void VR_ClearFrameBuffer( int width, int height)
     glDisable( GL_SCISSOR_TEST );
 }
 
+// Zoom by scaling the frustum tangents rather than the angles. Scaling the angles changes
+// (tanRight + tanLeft) / (tanRight - tanLeft), which moves the eye's optical axis within the
+// image -- so the zoomed view drifts off axis, and every 2D overlay drawn while zoomed (the
+// weapon scope above all) is corrected against a principal point the compositor is not using.
+// Scaling the tangents leaves that term untouched and magnifies about the axis, as a scope should.
+static float VR_ZoomAngle( float angle, float zoomLevel ) {
+    if (zoomLevel <= 1.0f) {
+        return angle;
+    }
+    return atanf(tanf(angle) / zoomLevel);
+}
+
 void VR_DrawFrame( engine_t* engine ) {
 	if (vr.weapon_zoomed) {
 		vr.weapon_zoomLevel += 0.05;
@@ -442,15 +454,40 @@ void VR_DrawFrame( engine_t* engine ) {
             projections));
     //
 
-    XrFovf fov = {};
+    // The screen layer is a single flat image taken from array index 0 and shown to both eyes,
+    // so it has to be rendered through a centred frustum. Averaging the two eyes gives exactly
+    // that: the headset's asymmetry is mirrored, so the average is symmetric.
+    qboolean screenLayer = VR_useScreenLayer() ? qtrue : qfalse;
+
+    // Each eye has its own asymmetric frustum: more field of view outward than nasally. Keep
+    // them separate for rendering, and take their union for anything that has to cover both.
+    XrFovf eyeFov[ovrMaxNumEyes];
+    XrFovf fov = projections[0].fov;
     XrPosef invViewTransform[2];
     for (int eye = 0; eye < ovrMaxNumEyes; eye++) {
         invViewTransform[eye] = projections[eye].pose;
+        eyeFov[eye] = projections[eye].fov;
 
-        fov.angleLeft += projections[eye].fov.angleLeft / 2.0f;
-        fov.angleRight += projections[eye].fov.angleRight / 2.0f;
-        fov.angleUp += projections[eye].fov.angleUp / 2.0f;
-        fov.angleDown += projections[eye].fov.angleDown / 2.0f;
+        if (projections[eye].fov.angleLeft < fov.angleLeft)
+            fov.angleLeft = projections[eye].fov.angleLeft;
+        if (projections[eye].fov.angleRight > fov.angleRight)
+            fov.angleRight = projections[eye].fov.angleRight;
+        if (projections[eye].fov.angleUp > fov.angleUp)
+            fov.angleUp = projections[eye].fov.angleUp;
+        if (projections[eye].fov.angleDown < fov.angleDown)
+            fov.angleDown = projections[eye].fov.angleDown;
+    }
+
+    if (screenLayer) {
+        XrFovf centred = {};
+        for (int eye = 0; eye < ovrMaxNumEyes; eye++) {
+            centred.angleLeft  += projections[eye].fov.angleLeft  / (float)ovrMaxNumEyes;
+            centred.angleRight += projections[eye].fov.angleRight / (float)ovrMaxNumEyes;
+            centred.angleUp    += projections[eye].fov.angleUp    / (float)ovrMaxNumEyes;
+            centred.angleDown  += projections[eye].fov.angleDown  / (float)ovrMaxNumEyes;
+        }
+        eyeFov[0] = eyeFov[1] = centred;
+        fov = centred;
     }
     vr.fov_x = (fabs(fov.angleLeft) + fabs(fov.angleRight)) * 180.0f / M_PI;
     vr.fov_y = (fabs(fov.angleUp) + fabs(fov.angleDown)) * 180.0f / M_PI;
@@ -464,11 +501,22 @@ void VR_DrawFrame( engine_t* engine ) {
     float hudScale = M_PI * 15.0f / 180.0f;
     const ovrMatrix4f monoVRMatrix = ovrMatrix4f_CreateProjectionFov(
             -hudScale, hudScale, hudScale, -hudScale, 1.0f, 0.0f );
-    const ovrMatrix4f projectionMatrix = ovrMatrix4f_CreateProjectionFov(
-            fov.angleLeft / vr.weapon_zoomLevel,
-            fov.angleRight / vr.weapon_zoomLevel,
-            fov.angleUp / vr.weapon_zoomLevel,
-            fov.angleDown / vr.weapon_zoomLevel,
+    ovrMatrix4f eyeProjectionMatrix[ovrMaxNumEyes];
+    for (int eye = 0; eye < ovrMaxNumEyes; eye++) {
+        eyeProjectionMatrix[eye] = ovrMatrix4f_CreateProjectionFov(
+                VR_ZoomAngle(eyeFov[eye].angleLeft, vr.weapon_zoomLevel),
+                VR_ZoomAngle(eyeFov[eye].angleRight, vr.weapon_zoomLevel),
+                VR_ZoomAngle(eyeFov[eye].angleUp, vr.weapon_zoomLevel),
+                VR_ZoomAngle(eyeFov[eye].angleDown, vr.weapon_zoomLevel),
+                1.0f, 0.0f );
+    }
+
+    // Union of both eyes, used for CPU-side culling so nothing visible to one eye is culled.
+    const ovrMatrix4f cullProjectionMatrix = ovrMatrix4f_CreateProjectionFov(
+            VR_ZoomAngle(fov.angleLeft, vr.weapon_zoomLevel),
+            VR_ZoomAngle(fov.angleRight, vr.weapon_zoomLevel),
+            VR_ZoomAngle(fov.angleUp, vr.weapon_zoomLevel),
+            VR_ZoomAngle(fov.angleDown, vr.weapon_zoomLevel),
             1.0f, 0.0f );
 
     engine->appState.LayerCount = 0;
@@ -477,7 +525,8 @@ void VR_DrawFrame( engine_t* engine ) {
     ovrFramebuffer* frameBuffer = &engine->appState.Renderer.FrameBuffer;
     int swapchainIndex = engine->appState.Renderer.FrameBuffer.TextureSwapChainIndex;
     int glFramebuffer = engine->appState.Renderer.FrameBuffer.FrameBuffers[swapchainIndex];
-    re.SetVRHeadsetParms(projectionMatrix.M, monoVRMatrix.M, glFramebuffer);
+    re.SetVRHeadsetParms(eyeProjectionMatrix[0].M, eyeProjectionMatrix[1].M,
+                         cullProjectionMatrix.M, monoVRMatrix.M, glFramebuffer);
 
     ovrFramebuffer_Acquire(frameBuffer);
     ovrFramebuffer_SetCurrent(frameBuffer);
@@ -495,7 +544,9 @@ void VR_DrawFrame( engine_t* engine ) {
     ovrFramebuffer_SetNone();
 
     XrCompositionLayerProjectionView projection_layer_elements[2] = {};
-    if (!VR_useScreenLayer() && !(cl.snap.ps.pm_flags & PMF_FOLLOW && vr.follow_mode == VRFM_FIRSTPERSON)) {
+    // Reuse the value the projections were built from, so the layer choice cannot disagree with
+    // them if the key catcher changes during Com_Frame.
+    if (!screenLayer && !(cl.snap.ps.pm_flags & PMF_FOLLOW && vr.follow_mode == VRFM_FIRSTPERSON)) {
         vr.menuYaw = vr.hmdorientation[YAW];
 
         if (fullscreenMode) {
@@ -509,7 +560,7 @@ void VR_DrawFrame( engine_t* engine ) {
             memset(&projection_layer_elements[eye], 0, sizeof(XrCompositionLayerProjectionView));
             projection_layer_elements[eye].type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
             projection_layer_elements[eye].pose = invViewTransform[eye];
-            projection_layer_elements[eye].fov = fov;
+            projection_layer_elements[eye].fov = projections[eye].fov;
 
             memset(&projection_layer_elements[eye].subImage, 0, sizeof(XrSwapchainSubImage));
             projection_layer_elements[eye].subImage.swapchain = frameBuffer->ColorSwapChain.Handle;
@@ -533,34 +584,41 @@ void VR_DrawFrame( engine_t* engine ) {
 
         fullscreenMode = qtrue;
 
-        // Build the cylinder layer
+        // Build the quad layer. This replaced a cylinder of radius 8 whose axis sat 6 metres
+        // ahead, so its image was 14 metres out and 8 * (pi/2) metres of arc wide. The quad
+        // keeps that distance and aspect; menuScale is the only knob for its size.
         int width = engine->appState.Renderer.FrameBuffer.ColorSwapChain.Width;
         int height = engine->appState.Renderer.FrameBuffer.ColorSwapChain.Height;
-        XrCompositionLayerCylinderKHR cylinder_layer = {};
-        cylinder_layer.type = XR_TYPE_COMPOSITION_LAYER_CYLINDER_KHR;
-        cylinder_layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
-        cylinder_layer.space = engine->appState.CurrentSpace;
-        cylinder_layer.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
-        memset(&cylinder_layer.subImage, 0, sizeof(XrSwapchainSubImage));
-        cylinder_layer.subImage.swapchain = engine->appState.Renderer.FrameBuffer.ColorSwapChain.Handle;
-        cylinder_layer.subImage.imageRect.offset.x = 0;
-        cylinder_layer.subImage.imageRect.offset.y = 0;
-        cylinder_layer.subImage.imageRect.extent.width = width;
-        cylinder_layer.subImage.imageRect.extent.height = height;
-        cylinder_layer.subImage.imageArrayIndex = 0;
+
+        const float menuDistance = 14.0f;
+        const float menuScale = 1.15f;
+        const float menuWidth = 8.0f * (MATH_PI * 0.5f) * menuScale;
+        const float menuAspect = width / (float)height / 0.75f;
+
+        XrCompositionLayerQuad quad_layer = {};
+        quad_layer.type = XR_TYPE_COMPOSITION_LAYER_QUAD;
+        quad_layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
+        quad_layer.space = engine->appState.CurrentSpace;
+        quad_layer.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
+        memset(&quad_layer.subImage, 0, sizeof(XrSwapchainSubImage));
+        quad_layer.subImage.swapchain = engine->appState.Renderer.FrameBuffer.ColorSwapChain.Handle;
+        quad_layer.subImage.imageRect.offset.x = 0;
+        quad_layer.subImage.imageRect.offset.y = 0;
+        quad_layer.subImage.imageRect.extent.width = width;
+        quad_layer.subImage.imageRect.extent.height = height;
+        quad_layer.subImage.imageArrayIndex = 0;
         const XrVector3f axis = {0.0f, 1.0f, 0.0f};
         XrVector3f pos = {
-                invViewTransform[0].position.x - sin(radians(vr.menuYaw)) * 6.0f,
+                invViewTransform[0].position.x - sin(radians(vr.menuYaw)) * menuDistance,
                 invViewTransform[0].position.y,
-                invViewTransform[0].position.z - cos(radians(vr.menuYaw)) * 6.0f
+                invViewTransform[0].position.z - cos(radians(vr.menuYaw)) * menuDistance
         };
-        cylinder_layer.pose.orientation = XrQuaternionf_CreateFromVectorAngle(axis, radians(vr.menuYaw));
-        cylinder_layer.pose.position = pos;
-        cylinder_layer.radius = 8.0f;
-        cylinder_layer.centralAngle = MATH_PI * 0.5f;
-        cylinder_layer.aspectRatio = width / (float)height / 0.75f;
+        quad_layer.pose.orientation = XrQuaternionf_CreateFromVectorAngle(axis, radians(vr.menuYaw));
+        quad_layer.pose.position = pos;
+        quad_layer.size.width = menuWidth;
+        quad_layer.size.height = menuWidth / menuAspect;
 
-        engine->appState.Layers[engine->appState.LayerCount++].Cylinder = cylinder_layer;
+        engine->appState.Layers[engine->appState.LayerCount++].Quad = quad_layer;
     }
 
     // Compose the layers for this frame.

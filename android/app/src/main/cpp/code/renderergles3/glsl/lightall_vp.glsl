@@ -73,7 +73,7 @@ layout(shared) uniform ViewMatrices
 };
 layout(shared) uniform ProjectionMatrix
 {
-    uniform mat4 u_ProjectionMatrix;
+    uniform mat4 u_ProjectionMatrices[NUM_VIEWS];
 };
 
 varying vec4   var_TexCoords;
@@ -197,7 +197,7 @@ void main()
 	var_TexCoords.xy = texCoords;
 #endif
 
-	gl_Position = u_ProjectionMatrix * (u_ViewMatrices[gl_ViewID_OVR] * (u_ModelMatrix * vec4(position, 1.0)));
+	gl_Position = u_ProjectionMatrices[gl_ViewID_OVR] * (u_ViewMatrices[gl_ViewID_OVR] * (u_ModelMatrix * vec4(position, 1.0)));
 
 #if defined(USE_MODELMATRIX)
 	position  = (u_ModelMatrix * vec4(position, 1.0)).xyz;

@@ -850,8 +850,9 @@ typedef struct {
 
 typedef struct {
 	qboolean	valid;
-	float		projection[16];
-	float		mirrorProjection[16];
+	float		projection[2][16];
+	float		mirrorProjection[2][16];
+	float		cullProjection[16];
 	float		monoVRProjection[16];
 	int			renderBuffer;
 	int			renderBufferOriginal;
@@ -2535,7 +2536,9 @@ void RE_StretchPic ( float x, float y, float w, float h,
 void RE_BeginFrame( stereoFrame_t stereoFrame );
 void RE_EndFrame( int *frontEndMsec, int *backEndMsec );
 #if __ANDROID__
-void RE_SetVRHeadsetParms( const float projectionMatrix[4][4],
+void RE_SetVRHeadsetParms( const float projectionMatrixLeft[4][4],
+						   const float projectionMatrixRight[4][4],
+						   const float projectionMatrixCull[4][4],
 						   const float nonVRProjectionMatrix[4][4],
 						   int renderBuffer );
 #endif
