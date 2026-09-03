@@ -19,13 +19,14 @@
 #include <jni.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-#include <openxr/openxr_oculus.h>
-#include <openxr/openxr_oculus_helpers.h>
+#include <openxr/openxr_helpers.h>
 
 #define MATH_PI 3.14159265358979323846f
 
-#define ALOGE(...) printf(__VA_ARGS__)
-#define ALOGV(...) printf(__VA_ARGS__)
+// printf goes nowhere on Android, so every OpenXR diagnostic used to be lost.
+#include <android/log.h>
+#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "Quake3", __VA_ARGS__)
+#define ALOGV(...) __android_log_print(ANDROID_LOG_INFO, "Quake3", __VA_ARGS__)
 
 typedef union {
     XrCompositionLayerProjection Projection;
@@ -36,7 +37,15 @@ enum { ovrMaxLayerCount = 1 };
 enum { ovrMaxNumEyes = 2 };
 
 #define GL(func) func;
-#define OXR(func) func;
+// Failures used to be discarded silently, which hides the cause of a stalled session.
+#define OXR(func)                                                              \
+    do {                                                                       \
+        XrResult oxr_result_ = (func);                                         \
+        if (XR_FAILED(oxr_result_)) {                                          \
+            ALOGE("OpenXR error %d: %s (%s:%d)", oxr_result_, #func,           \
+                  __FILE__, __LINE__);                                         \
+        }                                                                      \
+    } while (0)
 
 typedef struct {
 	JavaVM* Vm;

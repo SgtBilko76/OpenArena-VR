@@ -281,7 +281,6 @@ LOKISETUPDIR=misc/setup
 NSISDIR=misc/nsis
 SDLHDIR=$(MOUNT_DIR)/SDL2
 LIBSDIR=$(MOUNT_DIR)/libs
-OPENXRDIR=$(MOUNT_DIR)/OpenXR
 OPENXRSDKDIR=$(MOUNT_DIR)/OpenXR-SDK
 
 bin_path=$(shell which $(1) 2> /dev/null)
@@ -460,8 +459,8 @@ ifeq ($(PLATFORM),android)
   THREAD_LIBS =
   LIBS = -ldl -lm -Wl,--no-undefined -shared
 
-  CLIENT_LIBS = -lGLESv3 -lOpenSLES
-  RENDERER_LIBS = -lGLESv3 -lEGL
+  CLIENT_LIBS = -lGLESv3 -lOpenSLES -llog
+  RENDERER_LIBS = -lGLESv3 -lEGL -llog
   
   # SDL
   BASE_CFLAGS += -I$(SDLHDIR)/include
@@ -470,10 +469,10 @@ ifeq ($(PLATFORM),android)
   CLIENT_EXTRA_FILES += $(LIBSDIR)/android/arm64-v8a/libSDL2.so
 
   # OpenXR
-  BASE_CFLAGS += -I$(OPENXRDIR)/Include -I$(OPENXRSDKDIR)/include
-  CLIENT_LIBS += $(OPENXRDIR)/Libs/Android/arm64-v8a/Release/libopenxr_loader.so
-  RENDERER_LIBS += $(OPENXRDIR)/Libs/Android/arm64-v8a/Release/libopenxr_loader.so
-  CLIENT_EXTRA_FILES += $(OPENXRDIR)/Libs/Android/arm64-v8a/Release/libopenxr_loader.so
+  BASE_CFLAGS += -I$(OPENXRSDKDIR)/include -I$(OPENXRSDKDIR)/src/common
+  CLIENT_LIBS += $(LIBSDIR)/android/arm64-v8a/libopenxr_loader.so
+  RENDERER_LIBS += $(LIBSDIR)/android/arm64-v8a/libopenxr_loader.so
+  CLIENT_EXTRA_FILES += $(LIBSDIR)/android/arm64-v8a/libopenxr_loader.so
 else # ifeq Android
 
 #############################################################################

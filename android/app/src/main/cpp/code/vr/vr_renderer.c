@@ -367,7 +367,20 @@ void VR_DrawFrame( engine_t* engine ) {
 
     GLboolean stageBoundsDirty = GL_TRUE;
     if (ovrApp_HandleXrEvents(&engine->appState)) {
-        VR_Recenter(engine);
+        // Recentering tears down and rebuilds the reference spaces. Doing that before the
+        // first xrWaitFrame hangs: predictedDisplayTime is still 0, so xrLocateSpace fails
+        // with XR_ERROR_TIME_INVALID and the runtime spins on the space teardown. Defer it
+        // to the end of a frame that has a valid predicted display time.
+        if (engine->predictedDisplayTime == 0) {
+            needRecenter = qtrue;
+        } else {
+            VR_Recenter(engine);
+        }
+    }
+    static int loggedSessionActive = -1;
+    if (loggedSessionActive != (int)engine->appState.SessionActive) {
+        loggedSessionActive = (int)engine->appState.SessionActive;
+        ALOGV("VR_DrawFrame: SessionActive now %d", loggedSessionActive);
     }
     if (engine->appState.SessionActive == GL_FALSE) {
         return;
@@ -390,8 +403,11 @@ void VR_DrawFrame( engine_t* engine ) {
 
     OXR(xrWaitFrame(engine->appState.Session, &waitFrameInfo, &frameState));
     engine->predictedDisplayTime = frameState.predictedDisplayTime;
-    if (!frameState.shouldRender) {
-        return;
+
+    static int loggedShouldRender = -1;
+    if (loggedShouldRender != (int)frameState.shouldRender) {
+        loggedShouldRender = (int)frameState.shouldRender;
+        ALOGV("xrWaitFrame: shouldRender now %d", loggedShouldRender);
     }
 
     // Get the HMD pose, predicted for the middle of the time period during which
@@ -402,6 +418,20 @@ void VR_DrawFrame( engine_t* engine ) {
     beginFrameDesc.type = XR_TYPE_FRAME_BEGIN_INFO;
     beginFrameDesc.next = NULL;
     OXR(xrBeginFrame(engine->appState.Session, &beginFrameDesc));
+
+    // Every xrWaitFrame must still be paired with begin/end even when the runtime asks
+    // for no content. Returning here instead stalls the session at READY forever: the
+    // runtime waits for a frame, and shouldRender never becomes true without one.
+    if (!frameState.shouldRender) {
+        XrFrameEndInfo endFrameInfo = {};
+        endFrameInfo.type = XR_TYPE_FRAME_END_INFO;
+        endFrameInfo.displayTime = frameState.predictedDisplayTime;
+        endFrameInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+        endFrameInfo.layerCount = 0;
+        endFrameInfo.layers = NULL;
+        OXR(xrEndFrame(engine->appState.Session, &endFrameInfo));
+        return;
+    }
 
     XrViewLocateInfo projectionInfo = {};
     projectionInfo.type = XR_TYPE_VIEW_LOCATE_INFO;

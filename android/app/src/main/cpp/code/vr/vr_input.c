@@ -96,7 +96,6 @@ float degrees(float rad) {
 extern cvar_t *vr_righthanded;
 extern cvar_t *vr_switchThumbsticks;
 extern cvar_t *vr_snapturn;
-extern cvar_t *vr_extralatencymode;
 extern cvar_t *vr_directionMode;
 extern cvar_t *vr_weaponPitch;
 extern cvar_t *vr_heightAdjust;
@@ -1322,11 +1321,6 @@ void IN_VRInputFrame( void )
 		controllerInit = qtrue;
 	}
 	engine_t* engine = VR_GetEngine();
-
-	if (vr_extralatencymode != NULL &&
-            vr_extralatencymode->integer) {
-        //TODO:vrapi_SetExtraLatencyMode(VR_GetEngine()->ovr, VRAPI_EXTRA_LATENCY_MODE_ON);
-    }
 
 	if (vr_refreshrate != NULL && vr_refreshrate->integer) {
         OXR(engine->appState.pfnRequestDisplayRefreshRate(engine->appState.Session, (float)vr_refreshrate->integer));

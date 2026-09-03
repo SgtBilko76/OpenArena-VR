@@ -35,6 +35,9 @@
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
+				<category android:name="com.oculus.intent.category.VR" />
+				<!-- Required for the Khronos loader to resolve the runtime via the Android broker. -->
+				<category android:name="org.khronos.openxr.intent.category.IMMERSIVE_HMD" />
 			</intent-filter>
 		</activity>
 	</application>

@@ -15,6 +15,7 @@ extern vr_clientinfo_t vr;
 
 const char* const requiredExtensionNames[] = {
         XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
+        XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME,
         XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME,
         XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME,
         XR_KHR_COMPOSITION_LAYER_CYLINDER_EXTENSION_NAME,
@@ -76,12 +77,21 @@ engine_t* VR_Init( ovrJava java )
     appInfo.applicationVersion = 0;
     strcpy(appInfo.engineName, "Quake 3 Arena");
     appInfo.engineVersion = 0;
-    appInfo.apiVersion = XR_CURRENT_API_VERSION;
+    // Pinned to 1.0: the Khronos headers declare a 1.1 XR_CURRENT_API_VERSION, and asking a
+    // runtime for 1.1 is a behaviour change this port has never needed.
+    appInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
+
+    XrInstanceCreateInfoAndroidKHR instanceCreateInfoAndroid;
+    memset(&instanceCreateInfoAndroid, 0, sizeof(instanceCreateInfoAndroid));
+    instanceCreateInfoAndroid.type = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
+    instanceCreateInfoAndroid.next = NULL;
+    instanceCreateInfoAndroid.applicationVM = java.Vm;
+    instanceCreateInfoAndroid.applicationActivity = java.ActivityObject;
 
     XrInstanceCreateInfo instanceCreateInfo;
     memset(&instanceCreateInfo, 0, sizeof(instanceCreateInfo));
     instanceCreateInfo.type = XR_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.next = NULL;
+    instanceCreateInfo.next = &instanceCreateInfoAndroid;
     instanceCreateInfo.createFlags = 0;
     instanceCreateInfo.applicationInfo = appInfo;
     instanceCreateInfo.enabledApiLayerCount = 0;

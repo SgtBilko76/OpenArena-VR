@@ -262,6 +262,8 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 	public static native void nativeKey(int keycode, int action);
 
 	static {
+		// Loaded first so a missing or wrong loader fails here rather than deep inside libmain.
+		System.loadLibrary("openxr_loader");
 		System.loadLibrary("main");
 
 		//Add possible external haptic service details here
