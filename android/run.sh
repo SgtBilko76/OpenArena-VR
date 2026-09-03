@@ -14,12 +14,12 @@ SCRIPTDIR=$(readlink -f $(dirname $0))
 
 APP_NAME=$(cat $SCRIPTDIR/app/src/main/res/values/strings.xml | grep "app_name" | cut -d">" -f2 | cut -d"<" -f1 )
 APP_VERSION=$(cat $SCRIPTDIR/app/src/main/AndroidManifest.xml | grep "versionName" | cut -d\" -f2 | cut -d\" -f1 )
-APP_PACKAGE=$(cat $SCRIPTDIR/app/src/main/AndroidManifest.xml | grep "package" | cut -d\" -f2 | cut -d\" -f1 )
+APP_PACKAGE=$(cat $SCRIPTDIR/app/build.gradle | grep "applicationId" | cut -d"'" -f2 )
 
 if [ "$1" == "release" ] || [ "$2" == "release" ] || [ "$3" == "release" ] || [ "$4" == "release" ]; then
   TARGET=release
   GRADLE_BUILD_TYPE=:app:assembleRelease
-  APK_NAME=app-release-unsigned.apk
+  APK_NAME=app-release.apk
 else
   TARGET=debug
   GRADLE_BUILD_TYPE=:app:assembleDebug

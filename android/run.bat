@@ -14,7 +14,7 @@ set ANDROID_SDK_ROOT=%AppData%\..\Local\Android\Sdk
 set adb="%ANDROID_SDK_ROOT%\platform-tools\adb.exe"
 set make="%ANDROID_SDK_ROOT%\ndk\21.1.6352462\prebuilt\windows-x86_64\bin\make.exe"
 set apksigner="%ANDROID_SDK_ROOT%\build-tools\29.0.2\apksigner.bat"
-set JAVA_HOME=C:\Program Files\Android\Android Studio\jre\jre
+set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
 
 if "%1"=="clean" (
 	rm -rf .\build
@@ -63,7 +63,7 @@ set APK_LOCATION=.\app\build\outputs\apk\%BUILD_TYPE%\ioq3quest-%BUILD_TYPE%-%VE
 
 if %BUILD_TYPE%==release (
 	echo "Signing Release APK"
-	call %apksigner% sign --ks ../%KEYSTORE% --out %APK_LOCATION% --v2-signing-enabled true --ks-pass pass:%KEYSTORE_PASS% .\app\build\outputs\apk\%BUILD_TYPE%\app-%BUILD_TYPE%-unsigned.apk
+	call %apksigner% sign --ks ../%KEYSTORE% --out %APK_LOCATION% --v2-signing-enabled true --ks-pass pass:%KEYSTORE_PASS% .\app\build\outputs\apk\%BUILD_TYPE%\app-%BUILD_TYPE%.apk
 )
 
 if %BUILD_TYPE%==debug (

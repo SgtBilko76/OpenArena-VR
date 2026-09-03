@@ -6,6 +6,21 @@
 1. Install your copy of Quake III Arena from Steam.
 2. Android Studio with NDK version 21.1.6352462.
 
+### Android Studio
+Open the `android` folder in Android Studio and press Build. Gradle runs the whole pipeline:
+it cross-compiles the engine with the root Makefile, packs `pakQ3Q.pk3`, generates
+`vr_version.h`, then builds and signs the APK.
+
+From the command line the equivalent is:
+
+    cd android
+    ./gradlew :app:assembleRelease
+
+Release builds are signed with the debug keystore unless you pass your own key with
+`-Pkey.store=`, `-Pkey.store.password=`, `-Pkey.alias=` and `-Pkey.alias.password=`.
+Add `-PskipEngineBuild=true` to reuse the existing Makefile output instead of recompiling
+the engine.
+
 ### Building and running the build
 The scripts assume that you installed everything in the default locations. In case you want to deviate from that, the paths are in ./android/run.(sh|bat) and in Makefile.local.
 
