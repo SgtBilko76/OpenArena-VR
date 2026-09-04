@@ -73,8 +73,8 @@ static double lastframetime = 0;
 static float triggerPressedThreshold = 0.75f;
 static float triggerReleasedThreshold = 0.5f;
 
-static float thumbstickPressedThreshold = 0.5f;
-static float thumbstickReleasedThreshold = 0.4f;
+static float thumbstickPressedThreshold = 0.6f;
+static float thumbstickReleasedThreshold = 0.2f;
 
 extern cvar_t *cl_sensitivity;
 extern cvar_t *m_pitch;
@@ -96,6 +96,8 @@ float degrees(float rad) {
 extern cvar_t *vr_righthanded;
 extern cvar_t *vr_switchThumbsticks;
 extern cvar_t *vr_snapturn;
+extern cvar_t *vr_thumbstickPressThreshold;
+extern cvar_t *vr_thumbstickReleaseThreshold;
 extern cvar_t *vr_directionMode;
 extern cvar_t *vr_weaponPitch;
 extern cvar_t *vr_heightAdjust;
@@ -1359,6 +1361,14 @@ static void IN_VRWeaponCheat( qboolean leftGrip, qboolean rightGrip,
 
 void IN_VRInputFrame( void )
 {
+	// Refreshed here so the thresholds can be tuned live from the console.
+	if (vr_thumbstickPressThreshold != NULL) {
+		thumbstickPressedThreshold = vr_thumbstickPressThreshold->value;
+	}
+	if (vr_thumbstickReleaseThreshold != NULL) {
+		thumbstickReleasedThreshold = vr_thumbstickReleaseThreshold->value;
+	}
+
 	if (controllerInit == qfalse) {
 		memset(&leftController, 0, sizeof(leftController));
 		memset(&rightController, 0, sizeof(rightController));
@@ -1366,8 +1376,14 @@ void IN_VRInputFrame( void )
 	}
 	engine_t* engine = VR_GetEngine();
 
-	if (vr_refreshrate != NULL && vr_refreshrate->integer) {
-        OXR(engine->appState.pfnRequestDisplayRefreshRate(engine->appState.Session, (float)vr_refreshrate->integer));
+	// Only on change. This used to run every frame, which is pointless when the value is steady
+	// and, on a headset that cannot reach the requested rate (the original Quest tops out at 72),
+	// produced an OpenXR error every single frame.
+	static int requestedRefreshRate = 0;
+	if (vr_refreshrate != NULL && vr_refreshrate->integer &&
+		vr_refreshrate->integer != requestedRefreshRate) {
+		requestedRefreshRate = vr_refreshrate->integer;
+        OXR(engine->appState.pfnRequestDisplayRefreshRate(engine->appState.Session, (float)requestedRefreshRate));
 	}
 
 	vr.virtual_screen = VR_useScreenLayer();

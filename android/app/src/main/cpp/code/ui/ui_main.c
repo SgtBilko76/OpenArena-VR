@@ -5740,6 +5740,9 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 
 	if (Q_stricmp(cstate.servername,"localhost")) {
 		Text_PaintCenter(centerPoint, yStart + 80, scale, colorWhite, s, 0);
+		// Below the status, and clear of the server message at yStart + 176 even if it wraps.
+		Text_PaintCenter_AutoWrapped(centerPoint, yStart + 112, 630, 20, scale, colorWhite,
+			"If connection to server is not established within 20 seconds, cancel and try again", 0);
 	}
 
 	// password required / connection rejected information goes here

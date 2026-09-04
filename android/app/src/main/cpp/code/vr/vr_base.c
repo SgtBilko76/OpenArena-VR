@@ -41,6 +41,8 @@ cvar_t *vr_rollWhenHit = NULL;
 cvar_t *vr_hudYOffset = NULL;
 cvar_t *vr_2dYOffset = NULL;
 cvar_t *vr_menuTitleYOffset = NULL;
+cvar_t *vr_thumbstickPressThreshold = NULL;
+cvar_t *vr_thumbstickReleaseThreshold = NULL;
 cvar_t *vr_sendRollToServer = NULL;
 cvar_t *vr_lasersight = NULL;
 cvar_t *vr_hapticIntensity = NULL;
@@ -165,8 +167,8 @@ void VR_InitCvars( void )
 	vr_heightAdjust = Cvar_Get ("vr_heightAdjust", "0.0", CVAR_ARCHIVE);
     vr_twoHandedWeapons = Cvar_Get ("vr_twoHandedWeapons", "1", CVAR_ARCHIVE);
     vr_showItemInHand = Cvar_Get ("vr_showItemInHand", "1", CVAR_ARCHIVE);
-	vr_refreshrate = Cvar_Get ("vr_refreshrate", "72", CVAR_ARCHIVE);
-	vr_superSampling = Cvar_Get ("vr_superSampling", "1.1", CVAR_ARCHIVE);
+	vr_refreshrate = Cvar_Get ("vr_refreshrate", "90", CVAR_ARCHIVE);
+	vr_superSampling = Cvar_Get ("vr_superSampling", "1.2", CVAR_ARCHIVE);
     vr_weaponScope = Cvar_Get ("vr_weaponScope", "1", CVAR_ARCHIVE);
 	vr_rollWhenHit = Cvar_Get ("vr_rollWhenHit", "0", CVAR_ARCHIVE);
 	vr_hudYOffset = Cvar_Get ("vr_hudYOffset", "0", CVAR_ARCHIVE);
@@ -176,11 +178,16 @@ void VR_InitCvars( void )
 	// Menu titles sit at y=16 of 480, hard against the top of the VR view. Shift them
 	// down, in 640x480 units; see UI_DrawBannerString.
 	vr_menuTitleYOffset = Cvar_Get ("vr_menuTitleYOffset", "24", CVAR_ARCHIVE);
+	// Thumbstick hysteresis. A direction fires once the stick passes the press value and
+	// only re-arms once it falls back below the release value, so the gap between them is
+	// what stops a half-relaxed thumb triggering a second snap turn.
+	vr_thumbstickPressThreshold = Cvar_Get ("vr_thumbstickPressThreshold", "0.6", CVAR_ARCHIVE);
+	vr_thumbstickReleaseThreshold = Cvar_Get ("vr_thumbstickReleaseThreshold", "0.2", CVAR_ARCHIVE);
 	vr_sendRollToServer = Cvar_Get ("vr_sendRollToServer", "1", CVAR_ARCHIVE);
 	vr_lasersight = Cvar_Get ("vr_lasersight", "0", CVAR_ARCHIVE);
     vr_hapticIntensity = Cvar_Get ("vr_hapticIntensity", "1.0", CVAR_ARCHIVE);
     vr_comfortVignette = Cvar_Get ("vr_comfortVignette", "0.0", CVAR_ARCHIVE);
-	vr_weaponSelectorMode = Cvar_Get ("vr_weaponSelectorMode", "0", CVAR_ARCHIVE);
+	vr_weaponSelectorMode = Cvar_Get ("vr_weaponSelectorMode", "2", CVAR_ARCHIVE);
 	vr_weaponSelectorWithHud = Cvar_Get ("vr_weaponSelectorWithHud", "0", CVAR_ARCHIVE);
 	vr_goreLevel = Cvar_Get ("vr_goreLevel", "2", CVAR_ARCHIVE);
 	vr_hudDrawStatus = Cvar_Get ("vr_hudDrawStatus", "1", CVAR_ARCHIVE); // 0 - no hud, 1 - in-world hud, 2 - performance (static HUD)

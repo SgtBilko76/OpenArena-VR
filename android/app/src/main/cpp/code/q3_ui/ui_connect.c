@@ -183,6 +183,14 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 	UI_DrawProportionalString( 320, 64, va("Connecting to %s", cstate.servername), UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, menu_text_color );
 	//UI_DrawProportionalString( 320, 96, "Press Esc to abort", UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, menu_text_color );
 
+	// Not for a local server, where there is no connection to time out. Wrapped, with a step small
+	// enough that a second line still clears the connection status drawn at y=128.
+	if ( Q_stricmp( cstate.servername, "localhost" ) ) {
+		UI_DrawProportionalString_AutoWrapped( 320, 88, 600, 18,
+			"If connection to server is not established within 20 seconds, cancel and try again",
+			UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, menu_text_color );
+	}
+
 	// display global MOTD at bottom
 	UI_DrawProportionalString( SCREEN_WIDTH/2, SCREEN_HEIGHT-32, 
 		Info_ValueForKey( cstate.updateInfoString, "motd" ), UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, menu_text_color );

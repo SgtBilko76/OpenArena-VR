@@ -54,6 +54,7 @@ CONTROLS OPTIONS MENU
 #define ID_BACK					138
 
 #define	NUM_DIRECTIONMODE		2
+#define	NUM_WEAPONSELECTORMODE	3
 
 
 typedef struct {
@@ -90,7 +91,7 @@ static void Controls3_SetMenuItems( void ) {
 	s_controls3.uturn.curvalue				= trap_Cvar_VariableValue( "vr_uturn" ) != 0;
 	s_controls3.righthanded.curvalue		= trap_Cvar_VariableValue( "vr_righthanded" ) != 0;
     s_controls3.weaponpitch.curvalue		= trap_Cvar_VariableValue( "vr_weaponPitch" )  + 25;
-    s_controls3.weaponselectormode.curvalue	= (int)trap_Cvar_VariableValue( "vr_weaponSelectorMode" ) % 2;
+    s_controls3.weaponselectormode.curvalue	= (int)trap_Cvar_VariableValue( "vr_weaponSelectorMode" ) % NUM_WEAPONSELECTORMODE;
     s_controls3.controlschema.curvalue		= (int)trap_Cvar_VariableValue( "vr_controlSchema" ) % 3;
     s_controls3.switchthumbsticks.curvalue	= trap_Cvar_VariableValue( "vr_switchThumbsticks" ) != 0;
 }
@@ -257,6 +258,7 @@ static void Controls3_MenuInit( void ) {
 			{
 					"VR Style / Pointing",
 					"Classic / Thumbstick",
+					"Body Locked / Pointing",
 					NULL
 			};
 
@@ -404,7 +406,7 @@ static void Controls3_MenuInit( void ) {
 	s_controls3.weaponselectormode.generic.callback		= Controls3_MenuEvent;
 	s_controls3.weaponselectormode.generic.id				= ID_WEAPONSELECTORMODE;
 	s_controls3.weaponselectormode.itemnames	        	= s_weaponselectormode;
-	s_controls3.weaponselectormode.numitems				= 2;
+	s_controls3.weaponselectormode.numitems				= NUM_WEAPONSELECTORMODE;
 
 	y += BIGCHAR_HEIGHT+2;
 	s_controls3.controlschema.generic.type			= MTYPE_SPINCONTROL;

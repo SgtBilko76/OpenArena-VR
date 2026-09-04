@@ -150,8 +150,9 @@ typedef struct {
 } engine_t;
 
 typedef enum {
-	WS_CONTROLLER,
-	WS_HMD,
+	WS_CONTROLLER,	// wheel frozen where the controller pointed when it opened
+	WS_HMD,			// wheel locked to the head, selected with the thumbstick
+	WS_BODY,		// RTCW style: level, follows the player's yaw, pointed at with the controller
 	WS_ALTKEY,
 	WS_PREVNEXT
 } weaponSelectorType_t;

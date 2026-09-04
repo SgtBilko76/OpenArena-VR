@@ -1741,7 +1741,10 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	// set up gun position
 	CG_CalculateVRWeaponPosition( hand.origin, angles );
 
-	if (trap_Cvar_VariableValue("vr_lasersight") != 0.0f && !vr->no_crosshair)
+	// Suppressed while dead, for the same reason as the crosshair: there is nothing to aim on the
+	// death camera. CG_AddViewWeapon only skips spectators, intermission and third person.
+	if (trap_Cvar_VariableValue("vr_lasersight") != 0.0f && !vr->no_crosshair &&
+		ps->stats[STAT_HEALTH] > 0)
 	{
 		vec3_t forward, end;
 		AngleVectors(angles, forward, NULL, NULL);
@@ -2081,6 +2084,9 @@ void CG_DrawWeaponSelector( void )
     }
 
     const int selectorMode = (int)trap_Cvar_VariableValue("vr_weaponSelectorMode");
+    // WS_BODY behaves like WS_CONTROLLER in every respect except the wheel's orientation, so both
+    // share the controller-pointing selection, the beam and the open animation.
+    const qboolean pointingMode = (selectorMode == WS_CONTROLLER || selectorMode == WS_BODY);
     float dist = 10.0f;
     float radius = 4.0f;
 	float scale = 0.05f;
@@ -2103,11 +2109,25 @@ void CG_DrawWeaponSelector( void )
     VectorSubtract(vr->weaponposition, cg.weaponSelectorOrigin, controllerOffset);
 
 	vec3_t wheelAngles, wheelOrigin, beamOrigin, wheelForward, wheelRight, wheelUp;
-    CG_CalculateVRPositionInWorld(cg.weaponSelectorOrigin, cg.weaponSelectorOffset, cg.weaponSelectorAngles, wheelOrigin, wheelAngles);
+	if (selectorMode == WS_BODY)
+	{
+		// RTCW's anchor: take the head yaw live each frame and clear pitch and roll. Reading it
+		// live is what makes the wheel turn with the player; clearing the rest keeps it level
+		// however you are looking, instead of tipping with your head or hanging at whatever angle
+		// the controller happened to be at when it opened.
+		vec3_t bodyAngles;
+		VectorClear(bodyAngles);
+		bodyAngles[YAW] = vr->hmdorientation[YAW];
+		CG_CalculateVRPositionInWorld(cg.weaponSelectorOrigin, cg.weaponSelectorOffset, bodyAngles, wheelOrigin, wheelAngles);
+	}
+	else
+	{
+		CG_CalculateVRPositionInWorld(cg.weaponSelectorOrigin, cg.weaponSelectorOffset, cg.weaponSelectorAngles, wheelOrigin, wheelAngles);
+	}
 
 	AngleVectors(wheelAngles, wheelForward, wheelRight, wheelUp);
 
-	if (selectorMode == WS_CONTROLLER)
+	if (pointingMode)
 	{
 		VectorCopy(controllerOrigin, wheelOrigin);
 	}
@@ -2118,7 +2138,7 @@ void CG_DrawWeaponSelector( void )
 	}
 
 	VectorCopy(wheelOrigin, beamOrigin);
-	VectorMA(wheelOrigin, (dist * ((selectorMode == WS_CONTROLLER) ? frac : 1.0f)), wheelForward, wheelOrigin);
+	VectorMA(wheelOrigin, (dist * (pointingMode ? frac : 1.0f)), wheelForward, wheelOrigin);
     VectorCopy(wheelOrigin, selectorOrigin);
 
     const int switchThumbsticks = (int)trap_Cvar_VariableValue("vr_switchThumbsticks");
@@ -2136,7 +2156,7 @@ void CG_DrawWeaponSelector( void )
 
     float x = 0.0f;
     float y = 0.0f;
-    if (selectorMode == WS_CONTROLLER)
+    if (pointingMode)
     {
         x = (sinf(DEG2RAD(wheelAngles[YAW] - controllerAngles[YAW])) / sinf(DEG2RAD(22.5f)));
         y = ((wheelAngles[PITCH] - controllerAngles[PITCH]) / 22.5f);
@@ -2169,7 +2189,7 @@ void CG_DrawWeaponSelector( void )
         blob.hModel = cgs.media.smallSphereModel;
         trap_R_AddRefEntityToScene( &blob );
 
-		if (selectorMode == WS_CONTROLLER)
+		if (pointingMode)
 		{
 			byte colour[4];
 			colour[0] = 0x00;
@@ -2217,7 +2237,7 @@ void CG_DrawWeaponSelector( void )
             VectorMA(iconOrigin, 0.2f, forward, iconBackground);
             VectorMA(iconOrigin, -0.2f, forward, iconForeground);
 
-			if (selectorMode == WS_CONTROLLER)
+			if (pointingMode)
 			{
 				vec3_t diff;
 				VectorSubtract(selectorOrigin, iconOrigin, diff);
@@ -2393,7 +2413,7 @@ void CG_DrawWeaponSelector( void )
     }
 
     //Only reset selection if using controller pointer
-    if (!selected && selectorMode == WS_CONTROLLER)
+    if (!selected && pointingMode)
 	{
     	cg.weaponSelectorSelection = WP_NONE;
 	}

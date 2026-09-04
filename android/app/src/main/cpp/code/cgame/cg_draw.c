@@ -2835,7 +2835,10 @@ void CG_DrawActive( void ) {
 	// clear around the rendered view if sized down
 	CG_TileClear();
 
-	if(!vr->weapon_zoomed && !vr->virtual_screen)
+	// Not while dead: the death camera is a free-floating level overview, so an aiming crosshair
+	// is both meaningless and visually detached from the view. Matches the health test the rest of
+	// the HUD uses.
+	if(!vr->weapon_zoomed && !vr->virtual_screen && cg.snap->ps.stats[STAT_HEALTH] > 0)
 		CG_DrawCrosshair3D();
 
 	// offset vieworg appropriately if we're doing stereo separation
