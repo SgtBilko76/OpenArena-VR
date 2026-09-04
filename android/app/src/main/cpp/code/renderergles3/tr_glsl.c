@@ -1703,24 +1703,35 @@ void GLSL_PrepareUniformBuffers(void)
 
     Mat4Ortho(0, width, height, 0, 0, 1, orthoProjectionMatrix);
 
-    // The eye frusta are asymmetric, so an eye's optical axis is NOT at the centre of its image:
-    // it lands at NDC (-P[8], -P[9]) of that eye's projection. Content drawn identically to both
-    // eyes -- 2D overlays and HUD models -- has to be moved there, otherwise the same pixel means
-    // a different direction in each eye and the two images will not fuse.
+    // The eye frusta are asymmetric, so an eye's optical axis is not at the centre of its image:
+    // it sits at NDC (-P[8], -P[9]). Content drawn identically to both eyes -- 2D overlays and HUD
+    // models -- has to be moved there. Each axis is needed for a different reason:
+    //
+    //   X: the horizontal asymmetry is mirrored between the eyes, so without this the same pixel
+    //      means a different direction in each eye and the two images will not fuse.
+    //   Y: the vertical frustum is the same in both eyes, so there is no disparity to fix, but the
+    //      optical axis still is not the middle of the image. When scoped the view axis is the
+    //      weapon direction (cg_view.c), so shots travel along the optical axis -- leave this out
+    //      and the reticle sits below the point the shot actually reaches.
+    //
+    // vr_2dYOffset nudges the vertical alignment, in NDC units, for the residual error.
     float orthoEye[2][16];
     float monoEye[2][16];
     for (int eye = 0; eye < 2; eye++)
     {
+        float centreX = -tr.vrParms.projection[eye][8];
+        float centreY = -tr.vrParms.projection[eye][9] + vr_2dYOffset->value;
+
         // Ortho leaves w at 1, so the NDC offset is just a translation.
         Mat4Copy(orthoProjectionMatrix, orthoEye[eye]);
-        orthoEye[eye][12] -= tr.vrParms.projection[eye][8];
-        orthoEye[eye][13] -= tr.vrParms.projection[eye][9];
+        orthoEye[eye][12] += centreX;
+        orthoEye[eye][13] += centreY;
 
         // A perspective matrix carries its NDC offset in the principal-point terms, so the mono
         // frustum keeps its own field of view and simply inherits the eye's off-centre axis.
         Mat4Copy(tr.vrParms.monoVRProjection, monoEye[eye]);
-        monoEye[eye][8] += tr.vrParms.projection[eye][8];
-        monoEye[eye][9] += tr.vrParms.projection[eye][9];
+        monoEye[eye][8] -= centreX;
+        monoEye[eye][9] -= centreY;
     }
 
     //ortho projection matrices

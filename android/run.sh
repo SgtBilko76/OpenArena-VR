@@ -108,7 +108,7 @@ fi
 
 if [ "$1" == "start" ] || [ "$2" == "start" ] || [ "$3" == "start" ] || [ "$4" == "start" ]; then
   adb logcat -c
-  adb shell am start -n $APP_PACKAGE/.MainActivity
+  adb shell am start -n $APP_PACKAGE/.LauncherActivity
   if [ $? -ne 0 ]; then
     echo "Failed to start application."
     exit 1

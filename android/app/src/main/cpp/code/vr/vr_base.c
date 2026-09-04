@@ -39,6 +39,8 @@ cvar_t *vr_superSampling = NULL;
 cvar_t *vr_weaponScope = NULL;
 cvar_t *vr_rollWhenHit = NULL;
 cvar_t *vr_hudYOffset = NULL;
+cvar_t *vr_2dYOffset = NULL;
+cvar_t *vr_menuTitleYOffset = NULL;
 cvar_t *vr_sendRollToServer = NULL;
 cvar_t *vr_lasersight = NULL;
 cvar_t *vr_hapticIntensity = NULL;
@@ -168,6 +170,12 @@ void VR_InitCvars( void )
     vr_weaponScope = Cvar_Get ("vr_weaponScope", "1", CVAR_ARCHIVE);
 	vr_rollWhenHit = Cvar_Get ("vr_rollWhenHit", "0", CVAR_ARCHIVE);
 	vr_hudYOffset = Cvar_Get ("vr_hudYOffset", "0", CVAR_ARCHIVE);
+	// Fine vertical alignment of the 2D overlays, in NDC units. The eye-centre
+	// correction should land the reticle on the aim point; this trims what is left.
+	vr_2dYOffset = Cvar_Get ("vr_2dYOffset", "-0.02", CVAR_ARCHIVE);
+	// Menu titles sit at y=16 of 480, hard against the top of the VR view. Shift them
+	// down, in 640x480 units; see UI_DrawBannerString.
+	vr_menuTitleYOffset = Cvar_Get ("vr_menuTitleYOffset", "24", CVAR_ARCHIVE);
 	vr_sendRollToServer = Cvar_Get ("vr_sendRollToServer", "1", CVAR_ARCHIVE);
 	vr_lasersight = Cvar_Get ("vr_lasersight", "0", CVAR_ARCHIVE);
     vr_hapticIntensity = Cvar_Get ("vr_hapticIntensity", "1.0", CVAR_ARCHIVE);

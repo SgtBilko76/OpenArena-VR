@@ -55,9 +55,13 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.i(TAG, "onCreate called");
+		// LauncherActivity has already secured storage access, so the assets can be deployed
+		// straight away. This must happen before super.onCreate(), which starts the SDL thread
+		// and with it the engine.
 		try {
-			checkPermissionsAndInitialize();
+			create();
 		} catch (Exception e) {
+			Log.e(TAG, "Failed to deploy assets: " + e);
 		}
 		super.onCreate(savedInstanceState);
 
@@ -83,36 +87,6 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 		}
 		//special keys using SDL
 		return super.dispatchKeyEvent(event);
-	}
-
-	/**
-	 * Initializes the Activity only if the permission has been granted.
-	 */
-	private void checkPermissionsAndInitialize() throws IOException {
-		// Boilerplate for checking runtime permissions in Android.
-		if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-				!= PackageManager.PERMISSION_GRANTED) {
-			ActivityCompat.requestPermissions(this,
-					new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
-							Manifest.permission.WRITE_EXTERNAL_STORAGE},
-					WRITE_EXTERNAL_STORAGE_PERMISSION_ID);
-		} else {
-			// Permissions have already been granted.
-			create();
-		}
-	}
-
-	/**
-	 * Handles the user accepting the permission.
-	 */
-	@Override
-	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-		if (requestCode == WRITE_EXTERNAL_STORAGE_PERMISSION_ID) {
-			try {
-				create();
-			} catch (Exception e) {
-			}
-		}
 	}
 
 	@Override

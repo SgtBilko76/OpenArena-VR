@@ -3,7 +3,7 @@
 setlocal
 
 set BUILD_TYPE=release
-set VERSION=1.1.3
+set VERSION=1.2.0
 
 @REM Define the following environment variables to sign a release build
 @REM set KEYSTORE=
@@ -113,7 +113,7 @@ if %ERRORLEVEL% NEQ 0 (
 @REM )
 
 %adb% logcat -c
-%adb% shell am start -n %PACKAGE_NAME%/.MainActivity
+%adb% shell am start -n %PACKAGE_NAME%/.LauncherActivity
 if %ERRORLEVEL% NEQ 0 (
 	popd
 	popd

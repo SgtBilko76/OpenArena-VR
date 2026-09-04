@@ -452,6 +452,11 @@ void UI_DrawBannerString( int x, int y, const char* str, int style, vec4_t color
 			break;
 	}
 
+	// Every menu places its title at y=16, so the glyphs run from 16 to 52 of 480 -- right against
+	// the top edge, where the VR view clips them. Nudging here moves every menu title at once,
+	// rather than editing the banner position in each menu. Units are 640x480 screen space.
+	y += (int)trap_Cvar_VariableValue( "vr_menuTitleYOffset" );
+
 	if ( style & UI_DROPSHADOW ) {
 		drawcolor[0] = drawcolor[1] = drawcolor[2] = 0;
 		drawcolor[3] = color[3];

@@ -2564,12 +2564,18 @@ static void CG_DrawWeapReticle( void )
 
 	CG_AdjustFrom640( &x, &y, &w, &h );
 
+	// The 2D layer is shifted per eye so it sits on the optical axis, so masks drawn to exactly
+	// 640x480 stop short of the display edges and the world shows through. Bleed them well past
+	// the virtual screen. The aperture between them is what matters, and that is unchanged.
+	float bleedX = X_WIDTH * 0.25f;
+	float bleedY = Y_HEIGHT * 0.25f;
+
 	// sides
-	CG_FillRect( 0, 0, (X_WIDTH * indent), Y_HEIGHT, black );
-	CG_FillRect( X_WIDTH * (1 - indent), 0, (X_WIDTH * indent), Y_HEIGHT, black );
+	CG_FillRect( -bleedX, -bleedY, (X_WIDTH * indent) + bleedX, Y_HEIGHT + (2 * bleedY), black );
+	CG_FillRect( X_WIDTH * (1 - indent), -bleedY, (X_WIDTH * indent) + bleedX, Y_HEIGHT + (2 * bleedY), black );
 	// top/bottom
-	CG_FillRect( X_WIDTH * indent, 0, X_WIDTH * (1-indent), Y_HEIGHT * indent, black );
-	CG_FillRect( X_WIDTH * indent, Y_HEIGHT * (1-indent), X_WIDTH * (1-indent), Y_HEIGHT * indent, black );
+	CG_FillRect( X_WIDTH * indent, -bleedY, X_WIDTH * (1-indent) + bleedX, (Y_HEIGHT * indent) + bleedY, black );
+	CG_FillRect( X_WIDTH * indent, Y_HEIGHT * (1-indent), X_WIDTH * (1-indent) + bleedX, (Y_HEIGHT * indent) + bleedY, black );
 
 	{
 		// center
@@ -2634,12 +2640,17 @@ static void CG_DrawVignette( void )
 		vec4_t black = {0.0, 0.0, 0.0, 1};
 		trap_R_SetColor( black );
 
+		// Bled past the viewport for the same reason as the weapon reticle masks: the 2D layer is
+		// shifted per eye, so bars drawn to exactly the screen bounds leave the world visible.
+		int bleedX = cg.refdef.width / 4;
+		int bleedY = cg.refdef.height / 4;
+
 		// sides
-		trap_R_DrawStretchPic( 0, 0, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
-		trap_R_DrawStretchPic( cg.refdef.width - x, 0, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( -bleedX, -bleedY, x + bleedX, cg.refdef.height + (2 * bleedY), 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( cg.refdef.width - x, -bleedY, x + bleedX, cg.refdef.height + (2 * bleedY), 0, 0, 1, 1, cgs.media.whiteShader );
 		// top/bottom
-		trap_R_DrawStretchPic( x, 0, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
-		trap_R_DrawStretchPic( x, cg.refdef.height - y, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( x, -bleedY, cg.refdef.width - x + bleedX, y + bleedY, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( x, cg.refdef.height - y, cg.refdef.width - x + bleedX, y + bleedY, 0, 0, 1, 1, cgs.media.whiteShader );
 		// vignette
 		trap_R_DrawStretchPic( x, y, w, h, 0, 0, 1, 1, cgs.media.vignetteShader );
 
