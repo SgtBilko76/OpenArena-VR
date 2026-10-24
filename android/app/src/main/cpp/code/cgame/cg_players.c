@@ -2153,6 +2153,7 @@ static void CG_PlayerPowerups(centity_t *cent, refEntity_t *torso) {
     {
         int		value;
         value = cg.snap->ps.stats[STAT_HOLDABLE_ITEM];
+	if ( value < 0 || value >= bg_numItems ) value = 0;	// OpenArena VR: unknown server item
 
         if (value ) {
             CG_RegisterItemVisuals( value );

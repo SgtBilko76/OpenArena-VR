@@ -252,7 +252,7 @@ PROTOCOL
 */
 
 #define	PROTOCOL_VERSION	71
-#define PROTOCOL_LEGACY_VERSION	68
+#define PROTOCOL_LEGACY_VERSION	71	// OpenArena 0.8.x: protocol 71 == legacy netchan (as in OA's engine)
 // 1.31 - 67
 
 // maintain a list of compatible protocols for demo playing

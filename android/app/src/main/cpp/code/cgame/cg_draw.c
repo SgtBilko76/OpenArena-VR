@@ -2048,6 +2048,7 @@ static int CG_DrawPickupItem(int y) {
 	y -= ICON_SIZE;
 
 	value = cg.itemPickup;
+	if ( value < 0 || value >= bg_numItems ) value = 0;	// OpenArena VR: unknown server item
 	if (value) {
 		fadeColor = CG_FadeColor(cg.itemPickupTime, 3000);
 		if (fadeColor) {
@@ -2173,6 +2174,7 @@ static void CG_DrawHoldableItem(void) {
 	int value;
 
 	value = cg.snap->ps.stats[STAT_HOLDABLE_ITEM];
+	if ( value < 0 || value >= bg_numItems ) value = 0;	// OpenArena VR: unknown server item
 	if (value) {
 		CG_RegisterItemVisuals(value);
 
@@ -2198,6 +2200,7 @@ static void CG_DrawPersistantPowerup(void) {
 	int value;
 
 	value = cg.snap->ps.stats[STAT_PERSISTANT_POWERUP];
+	if ( value < 0 || value >= bg_numItems ) value = 0;	// OpenArena VR: unknown server item
 	if (value) {
 		CG_RegisterItemVisuals(value);
 		CG_DrawPic(640 - ICON_SIZE, (SCREEN_HEIGHT - ICON_SIZE) / 2 - ICON_SIZE, ICON_SIZE, ICON_SIZE, cg_items[ value ].icon);

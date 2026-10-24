@@ -100,7 +100,7 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 
 		// Copy the command line params file and autoexec
 		copy_asset("/sdcard/OpenArenaVR", "commandline.txt", false);
-		copy_asset("/sdcard/OpenArenaVR/baseoa", "autoexec_oa.cfg", "autoexec.cfg", false);
+		copy_asset("/sdcard/OpenArenaVR/baseoa", "autoexec_oa.cfg", "autoexec.cfg", true);	// always refresh: master server list etc.
 		// VR shaders (r_externalGLSL 1 loads them from this pak)
 		copy_asset("/sdcard/OpenArenaVR/baseoa", "pakQ3Q.pk3", true);
 		// Cleanup incompatible shaders

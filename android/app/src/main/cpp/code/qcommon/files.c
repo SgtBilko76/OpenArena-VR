@@ -343,6 +343,13 @@ FS_PakIsPure
 qboolean FS_PakIsPure( pack_t *pack ) {
 	int i;
 
+	// OpenArena VR: the VR renderer's GLSL and VR menu/crosshair shaders live in pakQ3Q.pk3, which no
+	// server has. Without it a pure server makes the renderer load OpenArena's desktop GLSL
+	// ("Couldn't compile shader"). It holds no game code, so keep it usable everywhere.
+	if ( !Q_stricmp( pack->pakBasename, "pakQ3Q" ) ) {
+		return qtrue;
+	}
+
 	if ( fs_numServerPaks ) {
 		for ( i = 0 ; i < fs_numServerPaks ; i++ ) {
 			// FIXME: also use hashed file names
@@ -1261,7 +1268,7 @@ long FS_FOpenFileReadDir(const char *filename, searchpath_t *search, fileHandle_
 					// from every pk3 file.. 
 					len = strlen(filename);
 
-					if (!(pak->referenced & FS_GENERAL_REF))
+					if (!(pak->referenced & FS_GENERAL_REF) && Q_stricmp(pak->pakBasename, "pakQ3Q"))	// OpenArena VR
 					{
 						if(!FS_IsExt(filename, ".shader", len) &&
 						   !FS_IsExt(filename, ".txt", len) &&
@@ -1277,9 +1284,9 @@ long FS_FOpenFileReadDir(const char *filename, searchpath_t *search, fileHandle_
 						}
 					}
 
-					if(strstr(filename, "cgame.qvm"))
+					if(strstr(filename, "cgame.qvm") && Q_stricmp(pak->pakBasename, "pakQ3Q"))
 						pak->referenced |= FS_CGAME_REF;
-					if(strstr(filename, "ui.qvm"))
+					if(strstr(filename, "ui.qvm") && Q_stricmp(pak->pakBasename, "pakQ3Q"))
 						pak->referenced |= FS_UI_REF;
 
 					if(uniqueFILE)
@@ -3330,6 +3337,16 @@ static void FS_ReorderPurePaks( void )
 			p_previous = &s->next;
 		}
 	}
+
+	// OpenArena VR: the VR pak must stay in front of everything (its GLSL overrides OA's desktop GLSL)
+	for ( p_previous = &fs_searchpaths; (s = *p_previous) != NULL; p_previous = &s->next ) {
+		if ( s->pack && !Q_stricmp( s->pack->pakBasename, "pakQ3Q" ) ) {
+			*p_previous = s->next;
+			s->next = fs_searchpaths;
+			fs_searchpaths = s;
+			break;
+		}
+	}
 }
 
 /*
@@ -3792,6 +3809,13 @@ const char *FS_ReferencedPakPureChecksums( void ) {
 	static char	info[BIG_INFO_STRING];
 	searchpath_t	*search;
 	int nFlags, numPaks, checksum;
+
+	// OpenArena VR: reference the QVM paks as a QVM client would (see apply_online.py)
+	if ( fs_numServerPaks ) {
+		fileHandle_t vmf;
+		if ( FS_FOpenFileRead( "vm/cgame.qvm", &vmf, qfalse ) >= 0 && vmf ) FS_FCloseFile( vmf );
+		if ( FS_FOpenFileRead( "vm/ui.qvm", &vmf, qfalse ) >= 0 && vmf ) FS_FCloseFile( vmf );
+	}
 
 	info[0] = 0;
 

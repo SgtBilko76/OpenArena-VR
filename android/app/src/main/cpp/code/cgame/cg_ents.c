@@ -234,8 +234,8 @@ static void CG_Item( centity_t *cent ) {
 	weaponInfo_t	*wi;
 
 	es = &cent->currentState;
-	if ( es->modelindex >= bg_numItems ) {
-		CG_Error( "Bad item index %i on entity", es->modelindex );
+	if ( es->modelindex < 0 || es->modelindex >= bg_numItems ) {
+		return;	// OpenArena VR: item from server game code we do not know (was a fatal CG_Error)
 	}
 
 	// if set to invisible, skip

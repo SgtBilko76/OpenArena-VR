@@ -1443,7 +1443,12 @@ void CG_RegisterItemVisuals( int itemNum )
 	gitem_t			*item;
 
 	if ( itemNum < 0 || itemNum >= bg_numItems ) {
-		CG_Error( "CG_RegisterItemVisuals: itemNum %d out of range [0-%d]", itemNum, bg_numItems-1 );
+		// OpenArena VR: online servers may run game code with more items than ours
+		static int warned;
+		if ( warned++ < 5 ) {
+			CG_Printf( S_COLOR_YELLOW "CG_RegisterItemVisuals: itemNum %d out of range [0-%d], ignored\n", itemNum, bg_numItems-1 );
+		}
+		return;
 	}
 
 	itemInfo = &cg_items[ itemNum ];

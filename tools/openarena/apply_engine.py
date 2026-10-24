@@ -56,8 +56,19 @@ edit('android/app/src/main/cpp/code/server/sv_init.c',
 	vr_master[2] = Cvar_Get("vr_master3", "master.ioquake3.org", 0);''',
      '''	// OpenArena VR: OpenArena's masters (the Quake3Quest master lists only Quake 3 servers)
 	vr_master[0] = Cvar_Get("vr_master1", MASTER_SERVER_NAME, 0);
-	vr_master[1] = Cvar_Get("vr_master2", "master.ioquake3.org", 0);
+	vr_master[1] = Cvar_Get("vr_master2", "", 0);	// master.ioquake3.org lists Quake 3 servers
 	vr_master[2] = Cvar_Get("vr_master3", "", 0);''')
+
+# --- network protocol: OpenArena 0.8.x calls its (idq3-style, no netchan checksum) protocol 71
+# and its engine sets PROTOCOL_LEGACY_VERSION 71 too. With ioq3's legacy 68 our client spoke the
+# new ioq3 netchan to OA servers, which switch to the legacy netchan for "protocol 71" clients:
+# the server accepted the connect but dropped every packet ("Awaiting gamestate" forever).
+edit('android/app/src/main/cpp/code/qcommon/qcommon.h',
+     '#define PROTOCOL_LEGACY_VERSION	68\n',
+     '#define PROTOCOL_LEGACY_VERSION	71	// OpenArena 0.8.x: protocol 71 == legacy netchan (as in OA\'s engine)\n')
+edit('android/app/src/main/cpp/code/qcommon/common.c',
+     'int demo_protocols[] =\n{ 67, 66, 0 };',
+     'int demo_protocols[] =\n{ 71, 70, 69, 68, 67, 66, 0 };	// OpenArena VR: OA demo protocols')
 
 edit('android/app/src/main/cpp/code/qcommon/files.c',
      'fs_nativeVMBase = Cvar_Get( "fs_nativeVMBase", "baseq3", CVAR_ARCHIVE );',

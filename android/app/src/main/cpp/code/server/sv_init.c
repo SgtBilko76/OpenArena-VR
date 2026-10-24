@@ -674,7 +674,7 @@ void SV_Init (void)
 	
 	// OpenArena VR: OpenArena's masters (the Quake3Quest master lists only Quake 3 servers)
 	vr_master[0] = Cvar_Get("vr_master1", MASTER_SERVER_NAME, 0);
-	vr_master[1] = Cvar_Get("vr_master2", "master.ioquake3.org", 0);
+	vr_master[1] = Cvar_Get("vr_master2", "", 0);	// master.ioquake3.org lists Quake 3 servers
 	vr_master[2] = Cvar_Get("vr_master3", "", 0);
 	for(index = 3; index < MAX_MASTER_SERVERS; index++)
 		vr_master[index] = Cvar_Get(va("vr_master%d", index + 1), "", CVAR_ARCHIVE);

@@ -48,7 +48,7 @@ edit(ma, '''		// Prepare base game directory
 
 		// Copy the command line params file and autoexec
 		copy_asset("{DATA}", "commandline.txt", false);
-		copy_asset("{DATA}/baseoa", "autoexec_oa.cfg", "autoexec.cfg", false);
+		copy_asset("{DATA}/baseoa", "autoexec_oa.cfg", "autoexec.cfg", true);	// always refresh: master server list etc.
 		// VR shaders (r_externalGLSL 1 loads them from this pak)
 		copy_asset("{DATA}/baseoa", "pakQ3Q.pk3", true);
 		// Cleanup incompatible shaders

@@ -2613,6 +2613,13 @@ void CL_ConnectionlessPacket( netadr_t from, msg_t *msg ) {
 	
 		if (clc.state != CA_CONNECTING)
 		{
+			// OpenArena VR: see apply_online.py
+			if ( clc.state == CA_CHALLENGING && NET_CompareAdr( from, clc.serverAddress ) && *Cmd_Argv(1) ) {
+				clc.challenge = atoi( Cmd_Argv(1) );
+				clc.connectTime = -99999;	// resend connect with it right away
+				Com_DPrintf( "challengeResponse (newer): %d\n", clc.challenge );
+				return;
+			}
 			Com_DPrintf("Unwanted challenge response received. Ignored.\n");
 			return;
 		}
