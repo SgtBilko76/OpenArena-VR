@@ -3003,7 +3003,7 @@ static void CG_DrawCrosshair3D(void) {
 	VectorMA(trace.endpos, -2.0f, viewaxis[0], ent.origin);	// OpenArena VR: just in front of the hit surface
 
 	// scale the crosshair so it appears the same size for all distances
-	ent.radius = w / 640 * xmax * trace.fraction * maxdist / zProj;
+	ent.radius = 0.5f * w / 640 * xmax * trace.fraction * maxdist / zProj;	// OpenArena VR: half size
 	ent.customShader = hShader;
 
 	// OpenArena VR: OA's crosshair shaders don't render as 3D sprites; use the VR copies, coloured

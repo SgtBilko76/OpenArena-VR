@@ -50,6 +50,10 @@ edit(CODE / 'cgame/cg_main.c', '''			cgs.media.crosshairShader[i] = trap_R_Regis
 	}
 ''')
 
+# half size in VR (user: "too big"); cg_crosshairSize still scales it
+edit(CODE / 'cgame/cg_draw.c', '''	ent.radius = w / 640 * xmax * trace.fraction * maxdist / zProj;''',
+     '''	ent.radius = 0.5f * w / 640 * xmax * trace.fraction * maxdist / zProj;	// OpenArena VR: half size''')
+
 edit(CODE / 'cgame/cg_draw.c', '''	ent.customShader = hShader;
 
 ''', '''	ent.customShader = hShader;
