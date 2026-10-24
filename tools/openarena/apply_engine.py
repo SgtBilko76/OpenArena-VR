@@ -10,7 +10,7 @@ OA_MAKEFILE = pathlib.Path.home() / 'workspace/openarena-src/gamecode/Makefile.o
 def edit(path, old, new, count=1):
     p = REPO / path if not str(path).startswith('/') else pathlib.Path(path)
     t = p.read_text()
-    if new in t:
+    if new in t and (old not in t or new not in old):
         print(f'  = {p.name}: already applied'); return
     n = t.count(old)
     assert n == count, f'{p}: anchor found {n}x (want {count}): {old[:80]!r}'
@@ -76,7 +76,7 @@ def block(text, name):
     m = re.search(r'^' + name + r'_ = \\\n(?:.*\\\n)*.*\n', text, re.M)
     assert m, name; return m.group(0)
 for name, extra in (('Q3CGOBJ', []), ('Q3GOBJ', []),
-                    ('Q3UIOBJ', ['ui_controls3', 'ui_comfort'])):
+                    ('Q3UIOBJ', ['ui_controls3', 'ui_comfort', 'ui_vrkeyboard'])):
     new = block(oamk, name)
     for e in extra:
         if f'/{e}.o' not in new:

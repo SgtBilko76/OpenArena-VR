@@ -154,7 +154,8 @@ static void G_LoadArenasFromFile( char *filename ) {
 G_LoadArenas
 ===============
 */
-static void G_LoadArenas( void ) {
+// OpenArena VR: not static, G_InitGame loads the arenas early (see g_main.c)
+void G_LoadArenas( void ) {
 	int			numdirs;
 	vmCvar_t	arenasFile;
 	char		filename[128];

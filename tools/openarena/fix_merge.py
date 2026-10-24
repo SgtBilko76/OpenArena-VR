@@ -5,7 +5,7 @@ CODE = pathlib.Path(__file__).resolve().parents[2] / 'android/app/src/main/cpp/c
 
 def edit(rel, old, new, count=1):
     p = CODE / rel; t = p.read_text(errors='surrogateescape')
-    if new in t: print(f'  = {rel}: already'); return
+    if new in t and (old not in t or new not in old): print(f'  = {rel}: already'); return
     assert t.count(old) == count, f'{rel}: {t.count(old)}x {old[:80]!r}'
     p.write_text(t.replace(old, new), errors='surrogateescape'); print(f'  + {rel}: {old.strip()[:50]!r}')
 
@@ -91,3 +91,21 @@ edit('cgame/cg_unlagged.c', '''			if(!cg.renderingThirdPerson) {
 				CG_CalculateVRWeaponPosition(muzzlePoint, vrAngles);
 			}
 ''')
+
+# OAX b53.2 bug (upstream reverted the whole .info rework in #342): G_InitGame reads the SP map's
+# bot list / frag limit / special rules from the arena files BEFORE G_InitBots loads them, so
+# single player got no bots ("No arena info found for the map ..."). Load the arenas first.
+edit('game/g_bot.c', '''static void G_LoadArenas( void ) {''', '''// OpenArena VR: not static, G_InitGame loads the arenas early (see g_main.c)
+void G_LoadArenas( void ) {''')
+edit('game/g_main.c', '''	MapInfoPrint(&mapinfo);
+	MapInfoSaveIntoCvars(&mapinfo);
+	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {''', '''	MapInfoPrint(&mapinfo);
+	MapInfoSaveIntoCvars(&mapinfo);
+	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {
+		// OpenArena VR fix: the arena files must be loaded before the map's SP settings are read
+		// from them (BG_InitMemory below resets the pool; G_InitBots loads them again after it)
+		extern void G_LoadArenas( void );
+		BG_InitMemory();
+		G_LoadArenas();
+	}
+	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {''')

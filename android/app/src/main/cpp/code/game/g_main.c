@@ -818,6 +818,13 @@ void G_InitGame( int levelTime, int randomSeed, int restart )
 	MapInfoPrint(&mapinfo);
 	MapInfoSaveIntoCvars(&mapinfo);
 	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {
+		// OpenArena VR fix: the arena files must be loaded before the map's SP settings are read
+		// from them (BG_InitMemory below resets the pool; G_InitBots loads them again after it)
+		extern void G_LoadArenas( void );
+		BG_InitMemory();
+		G_LoadArenas();
+	}
+	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {
 		if (G_GametypeUsesFragLimit(g_gametype.integer)) {
 			G_SetMapFragLimit(mapname);
 			G_Printf("^3Content of sp_FragLimit: ^7%i.\n",g_mapInfoFragLimit.integer);

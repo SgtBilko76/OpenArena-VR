@@ -7,7 +7,7 @@ CODE = REPO / 'android/app/src/main/cpp/code'
 def edit(rel, old, new, count=1):
     p = CODE / rel if not rel.startswith('/') else pathlib.Path(rel)
     t = p.read_text(errors='surrogateescape')
-    if new in t: print(f'  = {p.name}: already'); return
+    if new in t and (old not in t or new not in old): print(f'  = {p.name}: already'); return
     assert t.count(old) == count, f'{p}: {t.count(old)}x {old[:80]!r}'
     p.write_text(t.replace(old, new), errors='surrogateescape'); print(f'  + {p.name}: {old.strip().splitlines()[0][:50]!r}')
 

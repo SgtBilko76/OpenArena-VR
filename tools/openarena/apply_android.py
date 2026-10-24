@@ -10,7 +10,7 @@ DATA = '/sdcard/OpenArenaVR'
 
 def edit(p, old, new, count=1):
     t = p.read_text()
-    if new in t: print(f'  = {p.name}: already'); return
+    if new in t and (old not in t or new not in old): print(f'  = {p.name}: already'); return
     assert t.count(old) == count, f'{p}: {t.count(old)}x {old[:80]!r}'
     p.write_text(t.replace(old, new)); print(f'  + {p.name}: {old.strip().splitlines()[0][:60]!r}')
 
@@ -136,8 +136,9 @@ t = g.read_text()
 import re
 t2 = re.sub(r"applicationId = '[^']*'", "applicationId = 'com.bilko.openarenavr'", t)
 t2 = re.sub(r'ndkVersion "[^"]*"', 'ndkVersion "25.1.8937393"', t2)
-t2 = re.sub(r"versionCode \d+", "versionCode 1", t2)
-t2 = re.sub(r'versionName "[^"]*"', 'versionName "0.1.0"', t2)
+if 'com.bilko.openarenavr' not in t:	# first run only; later versions are bumped by hand
+    t2 = re.sub(r"versionCode \d+", "versionCode 1", t2)
+    t2 = re.sub(r'versionName "[^"]*"', 'versionName "0.1.0"', t2)
 t2 = t2.replace("version '3.10.2'", "version '3.22.1'")
 if t2 != t: g.write_text(t2); print('  + build.gradle: id/version/ndk')
 edit(g, "['baseq3', 'missionpack'].each { mod ->", "['baseoa'].each { mod ->")
