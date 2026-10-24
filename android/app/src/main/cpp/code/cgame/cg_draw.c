@@ -2998,13 +2998,31 @@ static void CG_DrawCrosshair3D(void) {
 */
 	memset(&ent, 0, sizeof (ent));
 	ent.reType = RT_SPRITE;
-	ent.renderfx = RF_CROSSHAIR;	// OpenArena VR: no RF_DEPTHHACK (sprite was invisible with it)
+	ent.renderfx = RF_DEPTHHACK | RF_CROSSHAIR;
 
-	VectorMA(trace.endpos, -2.0f, viewaxis[0], ent.origin);
+	VectorMA(trace.endpos, -2.0f, viewaxis[0], ent.origin);	// OpenArena VR: just in front of the hit surface
 
 	// scale the crosshair so it appears the same size for all distances
 	ent.radius = w / 640 * xmax * trace.fraction * maxdist / zProj;
 	ent.customShader = hShader;
+
+	// OpenArena VR: OA's crosshair shaders don't render as 3D sprites; use the VR copies, coloured
+	// like the 2D crosshair (health colour or cg_crosshairColor*)
+	if (cgs.media.vrCrosshairShader[ca % 10]) {
+		vec4_t col;
+		ent.customShader = cgs.media.vrCrosshairShader[ca % 10];
+		if (cg_crosshairHealth.integer) {
+			CG_ColorForHealth(col);
+		} else {
+			col[0] = cg_crosshairColorRed.value;
+			col[1] = cg_crosshairColorGreen.value;
+			col[2] = cg_crosshairColorBlue.value;
+		}
+		ent.shaderRGBA[0] = 255 * Com_Clamp(0, 1, col[0]);
+		ent.shaderRGBA[1] = 255 * Com_Clamp(0, 1, col[1]);
+		ent.shaderRGBA[2] = 255 * Com_Clamp(0, 1, col[2]);
+		ent.shaderRGBA[3] = 255;
+	}
 
 	trap_R_AddRefEntityToScene(&ent);
 }

@@ -1175,6 +1175,9 @@ static void CG_RegisterGraphics(void) {
 		else
 			cgs.media.crosshairShader[i] = trap_R_RegisterShader(va("gfx/2d/crosshair%02d", i - 10));
 	}
+	for (i = 0; i < 10; i++) {
+		cgs.media.vrCrosshairShader[i] = trap_R_RegisterShader(va("sprites/vr/crosshair%c", 'a' + i));
+	}
 
 	cgs.media.backTileShader = trap_R_RegisterShader("gfx/2d/backtile");
 	cgs.media.noammoShader = trap_R_RegisterShader("icons/noammo");
