@@ -898,6 +898,10 @@ void UI_KeyEvent( int key, int down ) {
 		return;
 	}
 
+	if (UI_VRKeyboard_Key(key, down)) {
+		return;	// a click on the VR keyboard, or on a text field that opened it
+	}
+
 	if (!down) {
 		return;
 	}
@@ -936,6 +940,10 @@ void UI_MouseEvent( int dx, int dy )
 		uis.cursory = -16;
 	else if (uis.cursory > SCREEN_HEIGHT+16)
 		uis.cursory = SCREEN_HEIGHT+16;
+
+	// the VR keyboard covers the menu items under it
+	if (UI_VRKeyboard_PointerInside())
+		return;
 
 	// region test the active menu items
 	for (i=0; i<uis.activemenu->nitems; i++)
@@ -1298,6 +1306,8 @@ void UI_Refresh( int realtime )
 			uis.firstdraw = qfalse;
 		}
 	}
+
+	UI_VRKeyboard_Draw();
 
 	// draw cursor
 	UI_SetColor( NULL );

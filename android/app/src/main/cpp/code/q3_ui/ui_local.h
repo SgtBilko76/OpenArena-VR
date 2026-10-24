@@ -308,6 +308,11 @@ extern void			*Menu_ItemAtCursor( menuframework_s *m );
 extern sfxHandle_t	Menu_ActivateItem( menuframework_s *s, menucommon_s* item );
 extern void			Menu_SetCursor( menuframework_s *s, int cursor );
 extern void			Menu_SetCursorToItem( menuframework_s *m, void* ptr );
+
+// ui_vrkeyboard.c
+extern qboolean		UI_VRKeyboard_Key( int key, int down );
+extern qboolean		UI_VRKeyboard_PointerInside( void );
+extern void			UI_VRKeyboard_Draw( void );
 extern sfxHandle_t	Menu_DefaultKey( menuframework_s *s, int key );
 extern void			Bitmap_Init( menubitmap_s *b );
 extern void			Bitmap_Draw( menubitmap_s *b );

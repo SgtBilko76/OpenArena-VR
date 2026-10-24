@@ -2626,6 +2626,7 @@ Q3UIOBJ_ = \
   $(B)/$(BASEGAME)/ui/ui_votemenu_custom.o \
   $(B)/$(BASEGAME)/ui/ui_controls3.o \
   $(B)/$(BASEGAME)/ui/ui_comfort.o \
+  $(B)/$(BASEGAME)/ui/ui_vrkeyboard.o \
   \
   $(B)/$(BASEGAME)/qcommon/q_math.o \
   $(B)/$(BASEGAME)/qcommon/q_shared.o
