@@ -119,6 +119,10 @@ typedef struct {
 	float		radius;
 	float		rotation;
 	qboolean	invert;
+
+	// OpenArena: eye position/look target for its eye-tracking player models (unused here)
+	vec3_t		eyepos[2];
+	vec3_t		eyelook;
 } refEntity_t;
 
 

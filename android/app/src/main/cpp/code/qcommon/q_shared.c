@@ -886,6 +886,13 @@ int Q_stricmp (const char *s1, const char *s2) {
 }
 
 
+void Q_StrToLower(char *io_string) {
+	int i;
+	for (i = 0; io_string[i]; i++) {
+		io_string[i] = tolower(io_string[i]);
+	}
+}
+
 char *Q_strlwr( char *s1 ) {
     char	*s;
 

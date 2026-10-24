@@ -30,7 +30,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  *****************************************************************************/
 
-//#define DEBUG
 #define CTF
 
 #define MAX_ITEMS					256
@@ -58,6 +57,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define LTG_ATTACKENEMYBASE			13	//attack the enemy base
 #define LTG_MAKELOVE_UNDER			14
 #define LTG_MAKELOVE_ONTOP			15
+//Long term DD goals
+#define LTG_HOLDPOINTA				16	//Take/Defend point A
+#define LTG_HOLDPOINTB				17	//Take/Defend point B
+//Long term DOM goals
+#define LTG_HOLDDOMPOINT			19	//Defend a DOM point
 //some goal dedication times
 #define TEAM_HELP_TIME				60	//1 minute teamplay help time
 #define TEAM_ACCOMPANY_TIME			600	//10 minutes teamplay accompany time
@@ -73,6 +77,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CTF_RUSHBASE_TIME			120	//2 minutes ctf rush base time
 #define CTF_RETURNFLAG_TIME			180	//3 minutes to return the flag
 #define CTF_ROAM_TIME				60	//1 minute ctf roam time
+//Time for Double Domination tasks
+#define TEAM_HOLDPOINTA_TIME		600
+#define TEAM_HOLDPOINTB_TIME		600
+//Time for Domination tasks
+#define TEAM_HOLDDOMPOINT_TIME		600
 //patrol flags
 #define PATROL_LOOP					1
 #define PATROL_REVERSE				2
@@ -88,6 +97,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define PRESENCE_CROUCH				4
 //
 #define MAX_PROXMINES				64
+// time the selected chat takes to type in
+#define BOTCHATTIME					2.0		//(float) trap_BotChatLength(bs->cs) * 30 / cpm;
 
 //check points
 typedef struct bot_waypoint_s
@@ -128,7 +139,7 @@ typedef struct bot_state_s
 	playerState_t cur_ps;							//current player state
 	int last_eFlags;								//last ps flags
 	usercmd_t lastucmd;								//usercmd from last frame
-	int entityeventTime[MAX_GENTITIES];				//last entity event time
+	int entityeventTime[1024];						//last entity event time
 	//
 	bot_settings_t settings;						//several bot settings
 	int (*ainode)(struct bot_state_s *bs);			//current AI node
@@ -192,6 +203,7 @@ typedef struct bot_state_s
 	float lastair_time;								//last time the bot had air
 	float teleport_time;							//last time the bot teleported
 	float camp_time;								//last time camped
+	float camp_range;								//camp range
 	float weaponchange_time;						//time the bot started changing weapons
 	float firethrottlewait_time;					//amount of time to wait
 	float firethrottleshoot_time;					//amount of time to shoot
@@ -227,7 +239,7 @@ typedef struct bot_state_s
 	int decisionmaker;								//player who decided to go for this goal
 	int ordered;									//true if ordered to do something
 	float order_time;								//time ordered to do something
-	int owndecision_time;							//time the bot made its own decision
+	int owndecision_time;							//time the bot made it's own decision
 	bot_goal_t teamgoal;							//the team goal
 	bot_goal_t altroutegoal;						//alternative route goal
 	float reachedaltroutegoal_time;					//time the bot reached the alt route goal
@@ -235,6 +247,7 @@ typedef struct bot_state_s
 	float teamgoal_time;							//time to stop helping team mate
 	float teammatevisible_time;						//last time the team mate was NOT visible
 	int teamtaskpreference;							//team task preference
+	int currentPoint;								//current DD/DOM point the bot cares about
 	// last ordered team goal
 	int lastgoal_decisionmaker;
 	int lastgoal_ltgtype;
@@ -263,6 +276,11 @@ typedef struct bot_state_s
 	int ctfstrategy;								//ctf strategy
 	char subteam[32];								//sub team name
 	float formation_dist;							//formation team mate intervening space
+	char formation_teammate[16];					//netname of the team mate the bot uses for relative positioning
+	float formation_angle;							//angle relative to the formation team mate
+	vec3_t formation_dir;							//the direction the formation is moving in
+	vec3_t formation_origin;						//origin the bot uses for relative positioning
+	bot_goal_t formation_goal;						//formation goal
 
 	bot_activategoal_t *activatestack;				//first activate goal on the stack
 	bot_activategoal_t activategoalheap[MAX_ACTIVATESTACK];	//activate goal heap
@@ -284,7 +302,7 @@ extern float floattime;
 #define FloatTime() floattime
 
 // from the game source
-void	QDECL BotAI_Print(int type, char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+void	QDECL BotAI_Print(int type, const char *fmt, ...) __attribute__((format(printf,2,3)));
 void	QDECL QDECL BotAI_BotInitialChat( bot_state_t *bs, char *type, ... );
 void	BotAI_Trace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int passent, int contentmask);
 int		BotAI_GetClientState( int clientNum, playerState_t *state );

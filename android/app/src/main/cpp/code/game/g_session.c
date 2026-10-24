@@ -40,7 +40,7 @@ G_WriteClientSessionData
 Called on game shutdown
 ================
 */
-void G_WriteClientSessionData( gclient_t *client ) {
+static void G_WriteClientSessionData( const gclient_t *client ) {
 	const char	*s;
 	const char	*var;
 
@@ -69,6 +69,8 @@ Called on a reconnect
 void G_ReadSessionData( gclient_t *client ) {
 	char	s[MAX_STRING_CHARS];
 	const char	*var;
+
+	// bk001205 - format
 	int teamLeader;
 	int spectatorState;
 	int sessionTeam;
@@ -77,15 +79,16 @@ void G_ReadSessionData( gclient_t *client ) {
 	trap_Cvar_VariableStringBuffer( var, s, sizeof(s) );
 
 	sscanf( s, "%i %i %i %i %i %i %i",
-		&sessionTeam,
+		&sessionTeam,                 // bk010221 - format
 		&client->sess.spectatorNum,
-		&spectatorState,
+		&spectatorState,              // bk010221 - format
 		&client->sess.spectatorClient,
 		&client->sess.wins,
 		&client->sess.losses,
-		&teamLeader
+		&teamLeader                   // bk010221 - format
 		);
 
+	// bk001205 - format issues
 	client->sess.sessionTeam = (team_t)sessionTeam;
 	client->sess.spectatorState = (spectatorState_t)spectatorState;
 	client->sess.teamLeader = (qboolean)teamLeader;
@@ -107,17 +110,15 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 
 	// check for team preference, mainly for bots
 	value = Info_ValueForKey( userinfo, "teampref" );
-
 	// check for human's team preference set by start server menu
 	if ( !value[0] && g_localTeamPref.string[0] && client->pers.localClient ) {
 		value = g_localTeamPref.string;
-
 		// clear team so it's only used once
 		trap_Cvar_Set( "g_localTeamPref", "" );
 	}
 
 	// initial team determination
-	if ( g_gametype.integer >= GT_TEAM ) {
+	if (G_IsATeamGametype(g_gametype.integer)) {
 		// always spawn as spectator in team games
 		sess->sessionTeam = TEAM_SPECTATOR;
 		sess->spectatorState = SPECTATOR_FREE;
@@ -133,6 +134,7 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 			switch ( g_gametype.integer ) {
 			default:
 			case GT_FFA:
+			case GT_LMS:
 			case GT_SINGLE_PLAYER:
 				if ( g_maxGameClients.integer > 0 && 
 					level.numNonSpectatorClients >= g_maxGameClients.integer ) {
@@ -151,7 +153,6 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 				break;
 			}
 		}
-
 		sess->spectatorState = SPECTATOR_FREE;
 	}
 

@@ -66,22 +66,118 @@ typedef struct voiceCommand_s
 
 /*
 ==================
+BotVoiceChat_HoldPointA
+==================
+*/
+void BotVoiceChat_HoldPointA(bot_state_t *bs, int client, int mode) {
+	//Only valid for Double Domination
+	if (gametype != GT_DOUBLE_D) return;
+	// If the A point isn't present, don't do anything.
+	if (!BotIsThereDDPointAInTheMap()) return;
+
+	bs->decisionmaker = client;
+	bs->ordered = qtrue;
+	bs->order_time = FloatTime();
+	//set the time to send a message to the team mates
+	bs->teammessage_time = FloatTime() + 2 * random();
+	//set the ltg type
+	bs->ltgtype = LTG_HOLDPOINTA;
+	//get the team goal time
+	bs->teamgoal_time = FloatTime() + TEAM_HOLDPOINTA_TIME;
+	//away from defending
+	bs->defendaway_time = 0;
+	//
+	BotSetTeamStatus(bs);
+	// remember last ordered task
+	BotRememberLastOrderedTask(bs);
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
+}
+
+/*
+==================
+BotVoiceChat_HoldPointB
+==================
+*/
+void BotVoiceChat_HoldPointB(bot_state_t *bs, int client, int mode) {
+	//Only valid for Double Domination
+	if (gametype != GT_DOUBLE_D) return;
+	// If the B point isn't present, don't do anything.
+	if (!BotIsThereDDPointBInTheMap()) return;
+
+	bs->decisionmaker = client;
+	bs->ordered = qtrue;
+	bs->order_time = FloatTime();
+	//set the time to send a message to the team mates
+	bs->teammessage_time = FloatTime() + 2 * random();
+	//set the ltg type
+	bs->ltgtype = LTG_HOLDPOINTB;
+	//get the team goal time
+	bs->teamgoal_time = FloatTime() + TEAM_HOLDPOINTB_TIME;
+	//away from defending
+	bs->defendaway_time = 0;
+	//
+	BotSetTeamStatus(bs);
+	// remember last ordered task
+	BotRememberLastOrderedTask(bs);
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
+}
+
+/*
+==================
+BotVoiceChat_HoldDOMPoint
+==================
+*/
+void BotVoiceChat_HoldDOMPoint(bot_state_t *bs, int client, int mode) {
+	//Only valid for Double Domination
+	if (gametype != GT_DOMINATION) return;
+	if (!BotAreThereDOMPointsInTheMap()) return;
+
+	bs->decisionmaker = client;
+	bs->ordered = qtrue;
+	bs->order_time = FloatTime();
+	//set the time to send a message to the team mates
+	bs->teammessage_time = FloatTime() + 2 * random();
+	//set the ltg type
+	bs->ltgtype = LTG_HOLDDOMPOINT;
+	//get the team goal time
+	bs->teamgoal_time = FloatTime() + TEAM_HOLDDOMPOINT_TIME;
+	//away from defending
+	bs->defendaway_time = 0;
+	//
+	BotSetTeamStatus(bs);
+	// remember last ordered task
+	BotRememberLastOrderedTask(bs);
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
+}
+
+/*
+==================
 BotVoiceChat_GetFlag
 ==================
 */
 void BotVoiceChat_GetFlag(bot_state_t *bs, int client, int mode) {
 	//
-	if (gametype == GT_CTF) {
-		if (!ctf_redflag.areanum || !ctf_blueflag.areanum)
+	if (!G_UsesTeamFlags(gametype) && !G_UsesTheWhiteFlag(gametype)) {
+		return;
+	}
+	if (G_UsesTeamFlags(gametype)) {
+		if (!BotIsThereABlueFlagInTheMap() || !BotIsThereARedFlagInTheMap())
 			return;
 	}
-#ifdef MISSIONPACK
-	else if (gametype == GT_1FCTF) {
-		if (!ctf_neutralflag.areanum || !ctf_redflag.areanum || !ctf_blueflag.areanum)
+	if (G_UsesTheWhiteFlag(gametype)) {
+		if (!BotIsThereANeutralFlagInTheMap())
 			return;
 	}
-#endif
-	else {
+	if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && !BotIsOnAttackingTeam(bs)) {
 		return;
 	}
 	//
@@ -95,7 +191,7 @@ void BotVoiceChat_GetFlag(bot_state_t *bs, int client, int mode) {
 	//set the team goal time
 	bs->teamgoal_time = FloatTime() + CTF_GETFLAG_TIME;
 	// get an alternate route in ctf
-	if (gametype == GT_CTF) {
+	if (G_UsesTeamFlags(gametype) && !G_UsesTheWhiteFlag(gametype)) {
 		//get an alternative route goal towards the enemy base
 		BotGetAlternateRouteGoal(bs, BotOppositeTeam(bs));
 	}
@@ -103,9 +199,10 @@ void BotVoiceChat_GetFlag(bot_state_t *bs, int client, int mode) {
 	BotSetTeamStatus(bs);
 	// remember last ordered task
 	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -114,15 +211,10 @@ BotVoiceChat_Offense
 ==================
 */
 void BotVoiceChat_Offense(bot_state_t *bs, int client, int mode) {
-	if ( gametype == GT_CTF
-#ifdef MISSIONPACK
-		|| gametype == GT_1FCTF
-#endif
-		) {
+	if (G_UsesTeamFlags(gametype)) {
 		BotVoiceChat_GetFlag(bs, client, mode);
 		return;
 	}
-#ifdef MISSIONPACK
 	if (gametype == GT_HARVESTER) {
 		//
 		bs->decisionmaker = client;
@@ -140,8 +232,34 @@ void BotVoiceChat_Offense(bot_state_t *bs, int client, int mode) {
 		// remember last ordered task
 		BotRememberLastOrderedTask(bs);
 	}
+	else if (gametype == GT_DOUBLE_D) {
+		// If the point A is NOT under control, capture it.
+		if (!BotTeamOwnsControlPoint(bs,level.pointStatusA)) {
+			BotVoiceChat_HoldPointA(bs,client,mode);
+		}
+		// If the point B is NOT under control, capture it.
+		else if (!BotTeamOwnsControlPoint(bs,level.pointStatusB)) {
+			BotVoiceChat_HoldPointB(bs,client,mode);
+		}
+		// Regardless of which team controls both points, pick one of them and hold onto it.
+		else {
+			if (rand() % 10 > 5)
+				BotVoiceChat_HoldPointA(bs,client,mode);
+			else
+				BotVoiceChat_HoldPointB(bs,client,mode);
+		}
+		return;
+	}
+	else if (gametype == GT_DOMINATION) {
+		BotSetDominationPoint(bs,-1);
+		BotVoiceChat_HoldDOMPoint(bs,client,mode);
+		return;
+	}
+	// eCTF in AvD mode only allows attackers to attack.
+	else if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && !BotIsOnAttackingTeam(bs)) {
+		return;
+	}
 	else
-#endif
 	{
 		//
 		bs->decisionmaker = client;
@@ -159,9 +277,10 @@ void BotVoiceChat_Offense(bot_state_t *bs, int client, int mode) {
 		// remember last ordered task
 		BotRememberLastOrderedTask(bs);
 	}
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -170,8 +289,7 @@ BotVoiceChat_Defend
 ==================
 */
 void BotVoiceChat_Defend(bot_state_t *bs, int client, int mode) {
-#ifdef MISSIONPACK
-	if ( gametype == GT_OBELISK || gametype == GT_HARVESTER) {
+	if (gametype == GT_HARVESTER || gametype == GT_OBELISK) {
 		//
 		switch(BotTeam(bs)) {
 			case TEAM_RED: memcpy(&bs->teamgoal, &redobelisk, sizeof(bot_goal_t)); break;
@@ -180,20 +298,39 @@ void BotVoiceChat_Defend(bot_state_t *bs, int client, int mode) {
 		}
 	}
 	else
-#endif
-		if (gametype == GT_CTF
-#ifdef MISSIONPACK
-			|| gametype == GT_1FCTF
-#endif
-			) {
-		//
-		switch(BotTeam(bs)) {
+		if (G_UsesTeamFlags(gametype)) {
+                    //
+                    switch(BotTeam(bs)) {
 			case TEAM_RED: memcpy(&bs->teamgoal, &ctf_redflag, sizeof(bot_goal_t)); break;
 			case TEAM_BLUE: memcpy(&bs->teamgoal, &ctf_blueflag, sizeof(bot_goal_t)); break;
 			default: return;
 		}
 	}
-	else {
+	else if (gametype == GT_DOUBLE_D) {
+		// If the point A is under control, defend it.
+		if (BotTeamOwnsControlPoint(bs,level.pointStatusA)) {
+			BotVoiceChat_HoldPointA(bs,client,mode);
+		}
+		// If the point B is under control, defend it.
+		else if (BotTeamOwnsControlPoint(bs,level.pointStatusB)) {
+			BotVoiceChat_HoldPointB(bs,client,mode);
+		}
+		// Regardless of which team controls both points, pick one of them and defend it.
+		else {
+			if (rand() % 10 > 5)
+				BotVoiceChat_HoldPointA(bs,client,mode);
+			else
+				BotVoiceChat_HoldPointB(bs,client,mode);
+		}
+		return;
+	}
+	else if (gametype == GT_DOMINATION) {
+		BotSetDominationPoint(bs,-1);
+		BotVoiceChat_HoldDOMPoint(bs,client,mode);
+		return;
+	}
+	// eCTF in AvD mode only allows defenders to defend.
+	else if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && BotIsOnAttackingTeam(bs)) {
 		return;
 	}
 	//
@@ -212,18 +349,10 @@ void BotVoiceChat_Defend(bot_state_t *bs, int client, int mode) {
 	BotSetTeamStatus(bs);
 	// remember last ordered task
 	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotVoiceChat_DefendFlag
-==================
-*/
-void BotVoiceChat_DefendFlag(bot_state_t *bs, int client, int mode) {
-	BotVoiceChat_Defend(bs, client, mode);
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -244,9 +373,10 @@ void BotVoiceChat_Patrol(bot_state_t *bs, int client, int mode) {
 	BotVoiceChatOnly(bs, -1, VOICECHAT_ONPATROL);
 	//
 	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -265,15 +395,15 @@ void BotVoiceChat_Camp(bot_state_t *bs, int client, int mode) {
 	//if info is valid (in PVS)
 	if (entinfo.valid) {
 		areanum = BotPointAreaNum(entinfo.origin);
-		if (areanum) { // && trap_AAS_AreaReachability(areanum)) {
+		if (areanum) { /* && trap_AAS_AreaReachability(areanum)) { */
 			//NOTE: just assume the bot knows where the person is
-			//if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, client)) {
+			/* if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, client)) { */
 				bs->teamgoal.entitynum = client;
 				bs->teamgoal.areanum = areanum;
 				VectorCopy(entinfo.origin, bs->teamgoal.origin);
 				VectorSet(bs->teamgoal.mins, -8, -8, -8);
 				VectorSet(bs->teamgoal.maxs, 8, 8, 8);
-			//}
+			/* } */
 		}
 	}
 	//if the other is not visible
@@ -300,9 +430,10 @@ void BotVoiceChat_Camp(bot_state_t *bs, int client, int mode) {
 	BotSetTeamStatus(bs);
 	// remember last ordered task
 	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -354,9 +485,10 @@ void BotVoiceChat_FollowMe(bot_state_t *bs, int client, int mode) {
 	BotSetTeamStatus(bs);
 	// remember last ordered task
 	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -370,9 +502,10 @@ void BotVoiceChat_FollowFlagCarrier(bot_state_t *bs, int client, int mode) {
 	carrier = BotTeamFlagCarrier(bs);
 	if (carrier >= 0)
 		BotVoiceChat_FollowMe(bs, carrier, mode);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -382,12 +515,7 @@ BotVoiceChat_ReturnFlag
 */
 void BotVoiceChat_ReturnFlag(bot_state_t *bs, int client, int mode) {
 	//if not in CTF mode
-	if (
-		gametype != GT_CTF
-#ifdef MISSIONPACK
-		&& gametype != GT_1FCTF
-#endif
-		) {
+	if (!G_UsesTeamFlags(gametype)) {
 		return;
 	}
 	//
@@ -402,9 +530,10 @@ void BotVoiceChat_ReturnFlag(bot_state_t *bs, int client, int mode) {
 	bs->teamgoal_time = FloatTime() + CTF_RETURNFLAG_TIME;
 	bs->rushbaseaway_time = 0;
 	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Developer mode outputs a message.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -424,7 +553,7 @@ BotVoiceChat_StopLeader
 void BotVoiceChat_StopLeader(bot_state_t *bs, int client, int mode) {
 	char netname[MAX_MESSAGE_SIZE];
 
-	if (!Q_stricmp(bs->teamleader, ClientName(client, netname, sizeof(netname)))) {
+	if (Q_strequal(bs->teamleader, ClientName(client, netname, sizeof(netname)))) {
 		bs->teamleader[0] = '\0';
 		notleader[client] = qtrue;
 	}
@@ -438,11 +567,11 @@ BotVoiceChat_WhoIsLeader
 void BotVoiceChat_WhoIsLeader(bot_state_t *bs, int client, int mode) {
 	char netname[MAX_MESSAGE_SIZE];
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 
 	ClientName(bs->client, netname, sizeof(netname));
 	//if this bot IS the team leader
-	if (!Q_stricmp(netname, bs->teamleader)) {
+	if (Q_strequal(netname, bs->teamleader)) {
 		BotAI_BotInitialChat(bs, "iamteamleader", NULL);
 		trap_BotEnterChat(bs->cs, 0, CHAT_TEAM);
 		BotVoiceChatOnly(bs, -1, VOICECHAT_STARTLEADER);
@@ -498,7 +627,7 @@ voiceCommand_t voiceCommands[] = {
 	{VOICECHAT_GETFLAG, BotVoiceChat_GetFlag},
 	{VOICECHAT_OFFENSE, BotVoiceChat_Offense },
 	{VOICECHAT_DEFEND, BotVoiceChat_Defend },
-	{VOICECHAT_DEFENDFLAG, BotVoiceChat_DefendFlag },
+	{VOICECHAT_DEFENDFLAG, BotVoiceChat_Defend },
 	{VOICECHAT_PATROL, BotVoiceChat_Patrol },
 	{VOICECHAT_CAMP, BotVoiceChat_Camp },
 	{VOICECHAT_FOLLOWME, BotVoiceChat_FollowMe },
@@ -509,15 +638,17 @@ voiceCommand_t voiceCommands[] = {
 	{VOICECHAT_WHOISLEADER, BotVoiceChat_WhoIsLeader },
 	{VOICECHAT_WANTONDEFENSE, BotVoiceChat_WantOnDefense },
 	{VOICECHAT_WANTONOFFENSE, BotVoiceChat_WantOnOffense },
+	{VOICECHAT_HOLDPOINTA, BotVoiceChat_HoldPointA },
+	{VOICECHAT_HOLDPOINTB, BotVoiceChat_HoldPointB },
+	{VOICECHAT_HOLDDOMPOINT, BotVoiceChat_HoldDOMPoint },
 	{NULL, BotVoiceChat_Dummy}
 };
 
 int BotVoiceChatCommand(bot_state_t *bs, int mode, char *voiceChat) {
 	int i, clientNum;
-	//int voiceOnly, color;
 	char *ptr, buf[MAX_MESSAGE_SIZE], *cmd;
 
-	if (!TeamPlayIsOn()) {
+	if (G_IsADMBasedGametype(gametype)) {
 		return qfalse;
 	}
 
@@ -527,22 +658,20 @@ int BotVoiceChatCommand(bot_state_t *bs, int mode, char *voiceChat) {
 
 	Q_strncpyz(buf, voiceChat, sizeof(buf));
 	cmd = buf;
-	for (; *cmd && *cmd > ' '; cmd++);
+	for (ptr = cmd; *cmd && *cmd > ' '; cmd++);
 	while (*cmd && *cmd <= ' ') *cmd++ = '\0';
-	//voiceOnly = atoi(ptr);
 	for (ptr = cmd; *cmd && *cmd > ' '; cmd++);
 	while (*cmd && *cmd <= ' ') *cmd++ = '\0';
 	clientNum = atoi(ptr);
-	for (; *cmd && *cmd > ' '; cmd++);
+	for (ptr = cmd; *cmd && *cmd > ' '; cmd++);
 	while (*cmd && *cmd <= ' ') *cmd++ = '\0';
-	//color = atoi(ptr);
 
 	if (!BotSameTeam(bs, clientNum)) {
 		return qfalse;
 	}
 
 	for (i = 0; voiceCommands[i].cmd; i++) {
-		if (!Q_stricmp(cmd, voiceCommands[i].cmd)) {
+		if (Q_strequal(cmd, voiceCommands[i].cmd)) {
 			voiceCommands[i].func(bs, clientNum, mode);
 			return qtrue;
 		}

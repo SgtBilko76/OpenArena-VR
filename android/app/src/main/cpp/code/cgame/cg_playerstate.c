@@ -44,10 +44,7 @@ void CG_CheckAmmo( void ) {
 	weapons = cg.snap->ps.stats[ STAT_WEAPONS ];
 	total = 0;
 	for ( i = WP_MACHINEGUN ; i < WP_NUM_WEAPONS ; i++ ) {
-		if ( ! ( weapons & ( 1 << i ) ) ) {
-			continue;
-		}
-		if ( cg.snap->ps.ammo[i] < 0 ) {
+		if ( ! ( weapons & ( 1 << i ) ) || i == WP_GRAPPLING_HOOK ) {
 			continue;
 		}
 		switch ( i ) {
@@ -55,9 +52,7 @@ void CG_CheckAmmo( void ) {
 		case WP_GRENADE_LAUNCHER:
 		case WP_RAILGUN:
 		case WP_SHOTGUN:
-#ifdef MISSIONPACK
 		case WP_PROX_LAUNCHER:
-#endif
 			total += cg.snap->ps.ammo[i] * 1000;
 			break;
 		default:
@@ -306,9 +301,6 @@ CG_CheckLocalSounds
 */
 void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	int			highScore, reward;
-#ifdef MISSIONPACK
-	int			health, armor;
-#endif
 	sfxHandle_t sfx;
 
 	// don't play the sounds if the player just changed teams
@@ -319,6 +311,7 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	// hit changes
 	if ( ps->persistant[PERS_HITS] > ops->persistant[PERS_HITS] ) {
 #ifdef MISSIONPACK
+		int health, armor;
 		armor  = ps->persistant[PERS_ATTACKEE_ARMOR] & 0xff;
 		health = ps->persistant[PERS_ATTACKEE_ARMOR] >> 8;
 		if (armor > 50 ) {
@@ -351,7 +344,7 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	// reward sounds
 	reward = qfalse;
 	if (ps->persistant[PERS_CAPTURES] != ops->persistant[PERS_CAPTURES]) {
-		pushReward(cgs.media.captureAwardSound, cgs.media.medalCapture, ps->persistant[PERS_CAPTURES]);
+		pushReward(0, cgs.media.medalCapture, ps->persistant[PERS_CAPTURES]);
 		reward = qtrue;
 		//Com_Printf("capture\n");
 	}
@@ -369,23 +362,27 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 		reward = qtrue;
 		//Com_Printf("impressive\n");
 	}
-	if (ps->persistant[PERS_EXCELLENT_COUNT] != ops->persistant[PERS_EXCELLENT_COUNT]) {
+	//KK-OAX We Just Won't Draw The Excellent Stuff if Multikills are Enabled!!!
+	if( !cgs.altExcellent ) {
+	    if (ps->persistant[PERS_EXCELLENT_COUNT] != ops->persistant[PERS_EXCELLENT_COUNT]) {
 #ifdef MISSIONPACK
-		if (ps->persistant[PERS_EXCELLENT_COUNT] == 1) {
-			sfx = cgs.media.firstExcellentSound;
-		} else {
-			sfx = cgs.media.excellentSound;
-		}
+		    if (ps->persistant[PERS_EXCELLENT_COUNT] == 1) {
+			    sfx = cgs.media.firstExcellentSound;
+		    } else {
+			    sfx = cgs.media.excellentSound;
+		    }
 #else
-		sfx = cgs.media.excellentSound;
+		    sfx = cgs.media.excellentSound;
 #endif
-		pushReward(sfx, cgs.media.medalExcellent, ps->persistant[PERS_EXCELLENT_COUNT]);
-		reward = qtrue;
-		//Com_Printf("excellent\n");
+
+		    pushReward(sfx, cgs.media.medalExcellent, ps->persistant[PERS_EXCELLENT_COUNT]);
+		    reward = qtrue;
+		    //Com_Printf("excellent\n");
+	    }
 	}
 	if (ps->persistant[PERS_GAUNTLET_FRAG_COUNT] != ops->persistant[PERS_GAUNTLET_FRAG_COUNT]) {
 #ifdef MISSIONPACK
-		if (ps->persistant[PERS_GAUNTLET_FRAG_COUNT] == 1) {
+		if (ops->persistant[PERS_GAUNTLET_FRAG_COUNT] == 1) {
 			sfx = cgs.media.firstHumiliationSound;
 		} else {
 			sfx = cgs.media.humiliationSound;
@@ -425,10 +422,15 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	}
 
 	// check for flag pickup
-	if ( cgs.gametype > GT_TEAM ) {
+	if ( CG_UsesTeamFlags(cgs.gametype) ) {
 		if ((ps->powerups[PW_REDFLAG] != ops->powerups[PW_REDFLAG] && ps->powerups[PW_REDFLAG]) ||
-			(ps->powerups[PW_BLUEFLAG] != ops->powerups[PW_BLUEFLAG] && ps->powerups[PW_BLUEFLAG]) ||
-			(ps->powerups[PW_NEUTRALFLAG] != ops->powerups[PW_NEUTRALFLAG] && ps->powerups[PW_NEUTRALFLAG]) )
+			(ps->powerups[PW_BLUEFLAG] != ops->powerups[PW_BLUEFLAG] && ps->powerups[PW_BLUEFLAG]) )
+		{
+			trap_S_StartLocalSound( cgs.media.youHaveFlagSound, CHAN_ANNOUNCER );
+		}
+	}
+	if ( CG_UsesTheWhiteFlag(cgs.gametype) ) {
+		if (ps->powerups[PW_NEUTRALFLAG] != ops->powerups[PW_NEUTRALFLAG] && ps->powerups[PW_NEUTRALFLAG])
 		{
 			trap_S_StartLocalSound( cgs.media.youHaveFlagSound, CHAN_ANNOUNCER );
 		}
@@ -440,12 +442,12 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 		if ( !cg.warmup ) {
 			// never play lead changes during warmup
 			if ( ps->persistant[PERS_RANK] != ops->persistant[PERS_RANK] ) {
-				if ( cgs.gametype < GT_TEAM) {
+				if (CG_IsADMBasedGametype(cgs.gametype)) {
 					if (  ps->persistant[PERS_RANK] == 0 ) {
 						CG_AddBufferedSound(cgs.media.takenLeadSound);
-					} else if ( ps->persistant[PERS_RANK] == RANK_TIED_FLAG ) {
+					} else if ( ps->persistant[PERS_RANK] == RANK_TIED_FLAG && cgs.gametype != GT_POSSESSION ) {
 						CG_AddBufferedSound(cgs.media.tiedLeadSound);
-					} else if ( ( ops->persistant[PERS_RANK] & ~RANK_TIED_FLAG ) == 0 ) {
+					} else if ( ps->persistant[PERS_RANK] != RANK_TIED_FLAG &&( ops->persistant[PERS_RANK] & ~RANK_TIED_FLAG ) == 0 ) {
 						CG_AddBufferedSound(cgs.media.lostLeadSound);
 					}
 				}
@@ -454,7 +456,7 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	}
 
 	// timelimit warnings
-	if ( cgs.timelimit > 0 ) {
+	if ( cgs.timelimit > 0 && cgs.timelimit <= 1000 ) {
 		int		msec;
 
 		msec = cg.time - cgs.levelStartTime;
@@ -473,7 +475,7 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 	}
 
 	// fraglimit warnings
-	if ( cgs.fraglimit > 0 && cgs.gametype < GT_CTF) {
+	if ( cgs.fraglimit > 0 && CG_GametypeUsesFragLimit(cgs.gametype)) {
 		highScore = cgs.scores1;
 
 		if (cgs.gametype == GT_TEAM && cgs.scores2 > highScore) {
@@ -493,6 +495,23 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 			CG_AddBufferedSound(cgs.media.threeFragSound);
 		}
 	}
+	/* // capturelimit warnings
+	else if ( cgs.capturelimit > 0 && CG_GametypeUsesCaptureLimit(cgs.gametype)) {
+		highScore = cgs.scores1;
+
+		if ( !( cg.capturelimitWarnings & 4 ) && highScore == (cgs.capturelimit - 1) ) {
+			cg.capturelimitWarnings |= 1 | 2 | 4;
+			CG_AddBufferedSound(cgs.media.oneCaptureSound);
+		}
+		else if ( cgs.capturelimit > 2 && !( cg.capturelimitWarnings & 2 ) && highScore == (cgs.capturelimit - 2) ) {
+			cg.fraglimitWarnings |= 1 | 2;
+			CG_AddBufferedSound(cgs.media.twoCaptureSound);
+		}
+		else if ( cgs.capturelimit > 3 && !( cg.capturelimitWarnings & 1 ) && highScore == (cgs.capturelimit - 3) ) {
+			cg.fraglimitWarnings |= 1;
+			CG_AddBufferedSound(cgs.media.threeCaptureSound);
+		}
+	}*/
 }
 
 /*

@@ -41,7 +41,7 @@ void QDECL Com_Error( int level, const char *error, ... ) {
 	Q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
-	trap_Error( text );
+	trap_Error( va("%s", text) );
 }
 
 void QDECL Com_Printf( const char *msg, ... ) {
@@ -52,7 +52,7 @@ void QDECL Com_Printf( const char *msg, ... ) {
 	Q_vsnprintf (text, sizeof(text), msg, argptr);
 	va_end (argptr);
 
-	trap_Print( text );
+	trap_Print( va("%s", text) );
 }
 
 float UI_GetXScale()
@@ -326,9 +326,9 @@ static int	propMap[128][3] = {
 {215, 34, 18},	// X
 {234, 34, 18},	// Y
 {5, 64, 14},	// Z
-{153, 152, 13},	// {
+{153, 152, 13},	/* { */
 {11, 181, 5},	// |
-{180, 152, 13},	// }
+{180, 152, 13},	/* } */
 {79, 93, 17},	// ~
 {0, 0, -1}		// DEL
 };
@@ -369,6 +369,8 @@ static int propMapB[26][3] = {
 #define PROPB_SPACE_WIDTH	12
 #define PROPB_HEIGHT		36
 
+// bk001205 - code below duplicated in cgame/cg_drawtools.c
+// bk001205 - FIXME: does this belong in ui_shared.c?
 /*
 =================
 UI_DrawBannerString
@@ -377,7 +379,7 @@ UI_DrawBannerString
 static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 {
 	const char* s;
-	unsigned char	ch;
+	unsigned char	ch; // bk001204 - unsigned
 	float	ax;
 	float	ay;
 	float	aw;
@@ -492,10 +494,10 @@ int UI_ProportionalStringWidth( const char* str ) {
 static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t color, float sizeScale, qhandle_t charset )
 {
 	const char* s;
-	unsigned char	ch;
+	unsigned char	ch; // bk001204 - unsigned
 	float	ax;
 	float	ay;
-	float	aw = 0;
+	float	aw = 0; // bk001204 - init
 	float	ah;
 	float	frow;
 	float	fcol;
@@ -555,10 +557,6 @@ void UI_DrawProportionalString( int x, int y, const char* str, int style, vec4_t
 	vec4_t	drawcolor;
 	int		width;
 	float	sizeScale;
-
-	if( !str ) {
-		return;
-	}
 
 	sizeScale = UI_ProportionalSizeScale( style );
 
@@ -851,7 +849,7 @@ static void NeedCDKeyAction( qboolean result ) {
 
 void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 	// this should be the ONLY way the menu system is brought up
-	// ensure minimum menu data is cached
+	// enusure minumum menu data is cached
 	Menu_Cache();
 
 	switch ( menu ) {
@@ -877,6 +875,7 @@ void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 		UI_InGameMenu();
 		return;
 		
+	// bk001204
 	case UIMENU_TEAM:
 	case UIMENU_POSTGAME:
 	default:
@@ -1051,45 +1050,67 @@ qboolean UI_ConsoleCommand( int realTime ) {
 	// ensure minimum menu data is available
 	Menu_Cache();
 
-	if ( Q_stricmp (cmd, "levelselect") == 0 ) {
+	if ( Q_strequal(cmd, "levelselect") ) {
 		UI_SPLevelMenu_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "postgame") == 0 ) {
+	if ( Q_strequal(cmd, "postgame") ) {
 		UI_SPPostgameMenu_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "ui_cache") == 0 ) {
+	if ( Q_strequal(cmd, "ui_cache") ) {
 		UI_Cache_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "ui_cinematics") == 0 ) {
+	if ( Q_strequal(cmd, "ui_cinematics") ) {
 		UI_CinematicsMenu_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "ui_teamOrders") == 0 ) {
+	if ( Q_strequal(cmd, "ui_teamOrders") ) {
 		UI_TeamOrdersMenu_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "iamacheater") == 0 ) {
+	if ( Q_strequal(cmd, "iamacheater") ) {
 		UI_SPUnlock_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "iamamonkey") == 0 ) {
+	if ( Q_strequal(cmd, "iamamonkey") ) {
 		UI_SPUnlockMedals_f();
 		return qtrue;
 	}
 
-	if ( Q_stricmp (cmd, "ui_cdkey") == 0 ) {
+	if ( Q_strequal(cmd, "ui_cdkey") ) {
 		UI_CDKeyMenu_f();
 		return qtrue;
 	}
+
+        if ( Q_strequal(cmd, "ui_mappage") ) {
+		mappage.pagenumber = atoi(UI_Argv( 1 ));
+                Q_strncpyz(mappage.mapname[0],UI_Argv(2),32);
+                Q_strncpyz(mappage.mapname[1],UI_Argv(3),32);
+                Q_strncpyz(mappage.mapname[2],UI_Argv(4),32);
+                Q_strncpyz(mappage.mapname[3],UI_Argv(5),32);
+                Q_strncpyz(mappage.mapname[4],UI_Argv(6),32);
+                Q_strncpyz(mappage.mapname[5],UI_Argv(7),32);
+                Q_strncpyz(mappage.mapname[6],UI_Argv(8),32);
+                Q_strncpyz(mappage.mapname[7],UI_Argv(9),32);
+                Q_strncpyz(mappage.mapname[8],UI_Argv(10),32);
+                Q_strncpyz(mappage.mapname[9],UI_Argv(11),32);
+
+                UI_VoteMapMenuInternal();
+		return qtrue;
+	}
+        
+        if ( Q_strequal(cmd, "ui_writemappools") ) {
+            WriteMapList();
+            return qtrue;
+        }
 
 	return qfalse;
 }
@@ -1190,6 +1211,10 @@ void UI_DrawHandlePic( float x, float y, float w, float h, qhandle_t hShader ) {
 	trap_R_DrawStretchPic( x, y, w, h, s0, t0, s1, t1, hShader );
 }
 
+void UI_DrawBackgroundPic( qhandle_t hShader ) {
+	trap_R_DrawStretchPic( 0.0, 0.0, uis.glconfig.vidWidth, uis.glconfig.vidHeight, 0, 0, 1, 1, hShader );
+}
+
 /*
 ================
 UI_FillRect
@@ -1256,10 +1281,10 @@ void UI_Refresh( int realtime )
 		{
 			// draw the background
 			if( uis.activemenu->showlogo ) {
-				UI_DrawHandlePic( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackShader );
+				UI_DrawBackgroundPic( uis.menuBackShader );
 			}
 			else {
-				UI_DrawHandlePic( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, uis.menuBackNoLogoShader );
+				UI_DrawBackgroundPic( uis.menuBackNoLogoShader );
 			}
 		}
 

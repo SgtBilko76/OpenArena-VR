@@ -4008,7 +4008,7 @@ void FS_InitFilesystem( void ) {
 	Com_StartupVariable("fs_game");
 
     fs_forceNativeVM = Cvar_Get( "fs_forceNativeVM", "1", CVAR_ARCHIVE );
-	fs_nativeVMBase = Cvar_Get( "fs_nativeVMBase", "baseq3", CVAR_ARCHIVE );
+	fs_nativeVMBase = Cvar_Get( "fs_nativeVMBase", BASEGAME, CVAR_ARCHIVE );
 
 
     if(!FS_FilenameCompare(Cvar_VariableString("fs_game"), com_basegame->string))

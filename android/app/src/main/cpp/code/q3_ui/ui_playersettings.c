@@ -22,12 +22,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 #include "ui_local.h"
 
-#define ART_FRAMEL			"menu/art/frame2_l"
-#define ART_FRAMER			"menu/art/frame1_r"
-#define ART_MODEL0			"menu/art/model_0"
-#define ART_MODEL1			"menu/art/model_1"
-#define ART_BACK0			"menu/art/back_0"
-#define ART_BACK1			"menu/art/back_1"
+#define ART_FRAMEL			"menu/" MENU_ART_DIR "/frame2_l"
+#define ART_FRAMER			"menu/" MENU_ART_DIR "/frame1_r"
+#define ART_MODEL0			"menu/" MENU_ART_DIR "/model_0"
+#define ART_MODEL1			"menu/" MENU_ART_DIR "/model_1"
+#define ART_BACK0			"menu/" MENU_ART_DIR "/back_0"
+#define ART_BACK1			"menu/" MENU_ART_DIR "/back_1"
 #define ART_FX_BASE			"menu/art/fx_base"
 #define ART_FX_BLUE			"menu/art/fx_blue"
 #define ART_FX_CYAN			"menu/art/fx_cyan"
@@ -40,9 +40,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ID_NAME			10
 #define ID_HANDICAP		11
 #define ID_EFFECTS		12
-#define ID_BODYSCALE	13
-#define ID_BACK			14
-#define ID_MODEL		15
+#define ID_EFFECTS2		13
+#define ID_BODYSCALE	14
+#define ID_BACK			15
+#define ID_MODEL		16
 
 #define MAX_NAMELENGTH	20
 
@@ -59,6 +60,9 @@ typedef struct {
 	menulist_s			handicap;
 	menulist_s			effects;
     menuslider_s	    bodyscale;
+        
+        //Added in beta 29
+        menulist_s              effects2;
 
 	menubitmap_s		back;
 	menubitmap_s		model;
@@ -77,7 +81,7 @@ static int gamecodetoui[] = {4,2,3,0,5,1,6};
 static int uitogamecode[] = {4,6,2,3,1,5,7};
 
 static const char *handicap_items[] = {
-	"None",
+	"100",
 	"95",
 	"90",
 	"85",
@@ -228,6 +232,20 @@ static void PlayerSettings_DrawEffects( void *self ) {
 	UI_DrawHandlePic( item->generic.x + 64 + item->curvalue * 16 + 8, item->generic.y + PROP_HEIGHT + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
 }
 
+/*
+=================
+PlayerSettings_DrawEffects
+=================
+*/
+static void PlayerSettings_DrawEffects2( void *self ) {
+	menulist_s		*item;
+
+	item = (menulist_s *)self;
+
+	UI_DrawHandlePic( item->generic.x + 64, item->generic.y + 8, 128, 8, s_playersettings.fxBasePic );
+	UI_DrawHandlePic( item->generic.x + 64 + item->curvalue * 16 + 8, item->generic.y + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
+}
+
 
 /*
 =================
@@ -240,7 +258,7 @@ static void PlayerSettings_DrawPlayer( void *self ) {
 	char			buf[MAX_QPATH];
 
 	trap_Cvar_VariableStringBuffer( "model", buf, sizeof( buf ) );
-	if ( strcmp( buf, s_playersettings.playerModel ) != 0 ) {
+	if ( !strequals( buf, s_playersettings.playerModel ) ) {
 		UI_PlayerInfo_SetModel( &s_playersettings.playerinfo, buf );
 		strcpy( s_playersettings.playerModel, buf );
 
@@ -269,6 +287,9 @@ static void PlayerSettings_SaveChanges( void ) {
 
 	// effects color
 	trap_Cvar_SetValue( "color1", uitogamecode[s_playersettings.effects.curvalue] );
+        
+        // effects2 color
+	trap_Cvar_SetValue( "color2", uitogamecode[s_playersettings.effects2.curvalue] );
 
 	// body scale
 	trap_Cvar_SetValue( "cg_firstPersonBodyScale", s_playersettings.bodyscale.curvalue);
@@ -307,6 +328,13 @@ static void PlayerSettings_SetMenuItems( void ) {
 		c = 6;
 	}
 	s_playersettings.effects.curvalue = gamecodetoui[c];
+        
+        // effects2 color
+	c = trap_Cvar_VariableValue( "color2" ) - 1;
+	if( c < 0 || c > 6 ) {
+		c = 6;
+	}
+	s_playersettings.effects2.curvalue = gamecodetoui[c];
 
 	// model/skin
 	memset( &s_playersettings.playerinfo, 0, sizeof(playerInfo_t) );
@@ -358,6 +386,15 @@ static void PlayerSettings_MenuEvent( void* ptr, int event ) {
 	}
 }
 
+/*
+=================
+PlayerSettings_StatusBar
+=================
+*/
+static void PlayerSettings_StatusBar( void* ptr ) {
+	UI_DrawString( 320, 400, "Lower handicap makes you weaker", UI_CENTER|UI_SMALLFONT, colorWhite );
+        UI_DrawString( 320, 420, "giving you more challenge", UI_CENTER|UI_SMALLFONT, colorWhite );
+}
 
 /*
 =================
@@ -424,6 +461,7 @@ static void PlayerSettings_MenuInit( void ) {
 	s_playersettings.handicap.generic.top		= y - 8;
 	s_playersettings.handicap.generic.right		= 192 + 200;
 	s_playersettings.handicap.generic.bottom	= y + 2 * PROP_HEIGHT;
+        s_playersettings.handicap.generic.statusbar     = PlayerSettings_StatusBar;
 	s_playersettings.handicap.numitems			= 20;
 
 	y += 3 * PROP_HEIGHT;
@@ -438,8 +476,21 @@ static void PlayerSettings_MenuInit( void ) {
 	s_playersettings.effects.generic.right		= 192 + 200;
 	s_playersettings.effects.generic.bottom		= y + 2* PROP_HEIGHT;
 	s_playersettings.effects.numitems			= 7;
+        
+        y += 2*PROP_HEIGHT;
+	s_playersettings.effects2.generic.type		= MTYPE_SPINCONTROL;
+	s_playersettings.effects2.generic.flags		= QMF_NODEFAULTINIT;
+	s_playersettings.effects2.generic.id			= ID_EFFECTS2;
+	s_playersettings.effects2.generic.ownerdraw	= PlayerSettings_DrawEffects2;
+	s_playersettings.effects2.generic.x			= 192;
+	s_playersettings.effects2.generic.y			= y;
+	s_playersettings.effects2.generic.left		= 192 - 8;
+	s_playersettings.effects2.generic.top		= y - 8;
+	s_playersettings.effects2.generic.right		= 192 + 200;
+	s_playersettings.effects2.generic.bottom		= y + 2* PROP_HEIGHT;
+	s_playersettings.effects2.numitems			= 7;
 
-    y += 3 * PROP_HEIGHT;
+    y += 2 * PROP_HEIGHT;
     s_playersettings.bodyscale.generic.type       = MTYPE_SLIDER;
     s_playersettings.bodyscale.generic.name	      = "1ST-PERSON BODY SCALE:";
     s_playersettings.bodyscale.generic.flags	  = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -494,6 +545,7 @@ static void PlayerSettings_MenuInit( void ) {
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.name );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.handicap );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.effects );
+        Menu_AddItem( &s_playersettings.menu, &s_playersettings.effects2 );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.bodyscale );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.model );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.back );

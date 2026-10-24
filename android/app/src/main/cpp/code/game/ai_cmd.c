@@ -58,7 +58,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 int notleader[MAX_CLIENTS];
 
-#ifdef DEBUG
 /*
 ==================
 BotPrintTeamGoal
@@ -67,6 +66,11 @@ BotPrintTeamGoal
 void BotPrintTeamGoal(bot_state_t *bs) {
 	char netname[MAX_NETNAME];
 	float t;
+
+	// Exit if not in the adequate devmode for bots.
+	if (!bot_developer.integer && !bot_debugLTG.integer) {
+		return;
+	}
 
 	ClientName(bs->client, netname, sizeof(netname));
 	t = bs->teamgoal_time - FloatTime();
@@ -96,7 +100,6 @@ void BotPrintTeamGoal(bot_state_t *bs) {
 			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna try to return the flag for %1.0f secs\n", netname, t);
 			break;
 		}
-#ifdef MISSIONPACK
 		case LTG_ATTACKENEMYBASE:
 		{
 			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna attack the enemy base for %1.0f secs\n", netname, t);
@@ -107,7 +110,6 @@ void BotPrintTeamGoal(bot_state_t *bs) {
 			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna harvest for %1.0f secs\n", netname, t);
 			break;
 		}
-#endif
 		case LTG_DEFENDKEYAREA:
 		{
 			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna defend a key area for %1.0f secs\n", netname, t);
@@ -134,6 +136,21 @@ void BotPrintTeamGoal(bot_state_t *bs) {
 			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna patrol for %1.0f secs\n", netname, t);
 			break;
 		}
+		case LTG_HOLDPOINTA:
+		{
+			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna take care of point A for %1.0f secs\n", netname, t);
+			break;
+		}
+		case LTG_HOLDPOINTB:
+		{
+			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna take care of point B for %1.0f secs\n", netname, t);
+			break;
+		}
+		case LTG_HOLDDOMPOINT:
+		{
+			BotAI_Print(PRT_MESSAGE, "%s: I'm gonna defend DOM point %i for %1.0f secs\n", netname, BotGetDominationPoint(bs), t);
+			break;
+		}
 		default:
 		{
 			if (bs->ctfroam_time > FloatTime()) {
@@ -146,7 +163,6 @@ void BotPrintTeamGoal(bot_state_t *bs) {
 		}
 	}
 }
-#endif //DEBUG
 
 /*
 ==================
@@ -240,7 +256,7 @@ int FindClientByName(char *name) {
 
 	for (i = 0; i < level.maxclients; i++) {
 		ClientName(i, buf, sizeof(buf));
-		if (!Q_stricmp(buf, name)) return i;
+		if (Q_strequal(buf, name)) return i;
 	}
 	for (i = 0; i < level.maxclients; i++) {
 		ClientName(i, buf, sizeof(buf));
@@ -261,7 +277,7 @@ int FindEnemyByName(bot_state_t *bs, char *name) {
 	for (i = 0; i < level.maxclients; i++) {
 		if (BotSameTeam(bs, i)) continue;
 		ClientName(i, buf, sizeof(buf));
-		if (!Q_stricmp(buf, name)) return i;
+		if (Q_strequal(buf, name)) return i;
 	}
 	for (i = 0; i < level.maxclients; i++) {
 		if (BotSameTeam(bs, i)) continue;
@@ -309,7 +325,7 @@ int BotGetPatrolWaypoints(bot_state_t *bs, bot_match_t *match) {
 	//
 	while(1) {
 		if (!trap_BotFindMatch(keyarea, &keyareamatch, MTCONTEXT_PATROLKEYAREA)) {
-			trap_EA_SayTeam(bs->client, "what do you say?");
+                            trap_EA_SayTeam(bs->client, "what do you say?");
 			BotFreeWaypoints(newpatrolpoints);
 			bs->patrolpoints = NULL;
 			return qfalse;
@@ -468,536 +484,84 @@ int BotGPSToPosition(char *buf, vec3_t position) {
 
 /*
 ==================
-BotMatch_HelpAccompany
+BotGetDominationPoint
+Returns the actual Domination point the bot is acting on. Prevents currentPoint from being accessed directly.
 ==================
 */
-void BotMatch_HelpAccompany(bot_state_t *bs, bot_match_t *match) {
-	int client, other, areanum;
-	char teammate[MAX_MESSAGE_SIZE];
-	char netname[MAX_MESSAGE_SIZE];
-	char itemname[MAX_MESSAGE_SIZE];
-	bot_match_t teammatematch;
-	aas_entityinfo_t entinfo;
+int BotGetDominationPoint(bot_state_t *bs) {
+	return bs->currentPoint;
+}
 
-	if (!TeamPlayIsOn()) return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//get the team mate name
-	trap_BotMatchVariable(match, TEAMMATE, teammate, sizeof(teammate));
-	//get the client to help
-	if (trap_BotFindMatch(teammate, &teammatematch, MTCONTEXT_TEAMMATE) &&
-			//if someone asks for him or herself
-			teammatematch.type == MSG_ME) {
-		//get the netname
-		trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-		client = ClientFromName(netname);
-		other = qfalse;
-	}
-	else {
-		//asked for someone else
-		client = FindClientByName(teammate);
-		//if this is the bot self
-		if (client == bs->client) {
-			other = qfalse;
-		}
-		else if (!BotSameTeam(bs, client)) {
-			//FIXME: say "I don't help the enemy"
-			return;
-		}
-		else {
-			other = qtrue;
-		}
-	}
-	//if the bot doesn't know who to help (FindClientByName returned -1)
-	if (client < 0) {
-		if (other) BotAI_BotInitialChat(bs, "whois", teammate, NULL);
-		else BotAI_BotInitialChat(bs, "whois", netname, NULL);
-		client = ClientFromName(netname);
-		trap_BotEnterChat(bs->cs, client, CHAT_TELL);
+/*
+==================
+BotSetDominationPoint
+Selects a point for Domination that the bot's team doesn't own. It's saved in the field currentPoint.
+==================
+*/
+void BotSetDominationPoint(bot_state_t *bs, int controlPoint) {
+	int i;
+	qboolean allPointsOwnedByOurTeam = qtrue;
+
+	// Domination only
+	if (gametype != GT_DOMINATION) return;
+	// If there are no points, just assign the neutral one.
+	if (!BotAreThereDOMPointsInTheMap()) {
+		bs->currentPoint = 0;
 		return;
 	}
-	//don't help or accompany yourself
-	if (client == bs->client) {
+	// If a control point has been passed, and falls inside
+	// of both gametype AND map limits, assign it.
+	if (controlPoint >= 0 &&
+			controlPoint < level.domination_points_count &&
+			controlPoint < MAX_DOMINATION_POINTS) {
+		bs->currentPoint = controlPoint;
 		return;
 	}
-	//
-	bs->teamgoal.entitynum = -1;
-	BotEntityInfo(client, &entinfo);
-	//if info is valid (in PVS)
-	if (entinfo.valid) {
-		areanum = BotPointAreaNum(entinfo.origin);
-		if (areanum) {// && trap_AAS_AreaReachability(areanum)) {
-			bs->teamgoal.entitynum = client;
-			bs->teamgoal.areanum = areanum;
-			VectorCopy(entinfo.origin, bs->teamgoal.origin);
-			VectorSet(bs->teamgoal.mins, -8, -8, -8);
-			VectorSet(bs->teamgoal.maxs, 8, 8, 8);
+	// Search for points our team don't own.
+	for (i=1;i<level.domination_points_count;i++) {
+		if (!BotTeamOwnsControlPoint(bs,level.pointStatusDom[i])) {
+			allPointsOwnedByOurTeam = qfalse;
+			bs->currentPoint = i;
+			break;
 		}
 	}
-	//if no teamgoal yet
-	if (bs->teamgoal.entitynum < 0) {
-		//if near an item
-		if (match->subtype & ST_NEARITEM) {
-			//get the match variable
-			trap_BotMatchVariable(match, ITEM, itemname, sizeof(itemname));
-			//
-			if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
-				//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
-				//trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
-				return;
-			}
+	// If we own all of the points, operate in a random one.
+	if (allPointsOwnedByOurTeam == qtrue) {
+		bs->currentPoint = rand() % level.domination_points_count;
+	}
+	return;
+}
+
+/*
+==================
+BotSetOwnDominationPoint
+Selects a point for Domination that the bot's team owns. It's saved in the field currentPoint.
+==================
+*/
+void BotSetOwnDominationPoint(bot_state_t *bs) {
+	int i;
+	qboolean noPointOwnedByOurTeam = qtrue;
+
+	// Domination only
+	if (gametype != GT_DOMINATION) return;
+	// If there are no points, just assign the neutral one.
+	if (!BotAreThereDOMPointsInTheMap()) {
+		bs->currentPoint = 0;
+		return;
+	}
+	// Search for points our team already owns.
+	for (i=1;i<level.domination_points_count;i++) {
+		if (BotTeamOwnsControlPoint(bs,level.pointStatusDom[i])) {
+			noPointOwnedByOurTeam = qfalse;
+			bs->currentPoint = i;
+			break;
 		}
 	}
-	//
-	if (bs->teamgoal.entitynum < 0) {
-		if (other) BotAI_BotInitialChat(bs, "whereis", teammate, NULL);
-		else BotAI_BotInitialChat(bs, "whereareyou", netname, NULL);
-		client = ClientFromName(netname);
-		trap_BotEnterChat(bs->cs, client, CHAT_TEAM);
-		return;
+	// If we don't own any of the points, operate in a random one.
+	if (noPointOwnedByOurTeam == qtrue) {
+		bs->currentPoint = rand() % level.domination_points_count;
 	}
-	//the team mate
-	bs->teammate = client;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = ClientFromName(netname);
-	//the team mate who ordered
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//last time the team mate was assumed visible
-	bs->teammatevisible_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//get the team goal time
-	bs->teamgoal_time = BotGetTime(match);
-	//set the ltg type
-	if (match->type == MSG_HELP) {
-		bs->ltgtype = LTG_TEAMHELP;
-		if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + TEAM_HELP_TIME;
-	}
-	else {
-		bs->ltgtype = LTG_TEAMACCOMPANY;
-		if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + TEAM_ACCOMPANY_TIME;
-		bs->formation_dist = 3.5 * 32;		//3.5 meter
-		bs->arrive_time = 0;
-		//
-		BotSetTeamStatus(bs);
-		// remember last ordered task
-		BotRememberLastOrderedTask(bs);
-	}
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_DefendKeyArea
-==================
-*/
-void BotMatch_DefendKeyArea(bot_state_t *bs, bot_match_t *match) {
-	char itemname[MAX_MESSAGE_SIZE];
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (!TeamPlayIsOn()) return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//get the match variable
-	trap_BotMatchVariable(match, KEYAREA, itemname, sizeof(itemname));
-	//
-	if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
-		//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
-		//trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
-		return;
-	}
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = ClientFromName(netname);
-	//the team mate who ordered
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_DEFENDKEYAREA;
-	//get the team goal time
-	bs->teamgoal_time = BotGetTime(match);
-	//set the team goal time
-	if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + TEAM_DEFENDKEYAREA_TIME;
-	//away from defending
-	bs->defendaway_time = 0;
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_GetItem
-==================
-*/
-void BotMatch_GetItem(bot_state_t *bs, bot_match_t *match) {
-	char itemname[MAX_MESSAGE_SIZE];
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (!TeamPlayIsOn()) return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//get the match variable
-	trap_BotMatchVariable(match, ITEM, itemname, sizeof(itemname));
-	//
-	if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
-		//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
-		//trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
-		return;
-	}
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	client = ClientOnSameTeamFromName(bs, netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_GETITEM;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + TEAM_GETITEM_TIME;
-	//
-	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_Camp
-==================
-*/
-void BotMatch_Camp(bot_state_t *bs, bot_match_t *match) {
-	int client, areanum;
-	char netname[MAX_MESSAGE_SIZE];
-	char itemname[MAX_MESSAGE_SIZE];
-	aas_entityinfo_t entinfo;
-
-	if (!TeamPlayIsOn()) return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//asked for someone else
-	client = FindClientByName(netname);
-	//if there's no valid client with this name
-	if (client < 0) {
-		BotAI_BotInitialChat(bs, "whois", netname, NULL);
-		trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
-		return;
-	}
-	//get the match variable
-	trap_BotMatchVariable(match, KEYAREA, itemname, sizeof(itemname));
-	//in CTF it could be the base
-	if (match->subtype & ST_THERE) {
-		//camp at the spot the bot is currently standing
-		bs->teamgoal.entitynum = bs->entitynum;
-		bs->teamgoal.areanum = bs->areanum;
-		VectorCopy(bs->origin, bs->teamgoal.origin);
-		VectorSet(bs->teamgoal.mins, -8, -8, -8);
-		VectorSet(bs->teamgoal.maxs, 8, 8, 8);
-	}
-	else if (match->subtype & ST_HERE) {
-		//if this is the bot self
-		if (client == bs->client) return;
-		//
-		bs->teamgoal.entitynum = -1;
-		BotEntityInfo(client, &entinfo);
-		//if info is valid (in PVS)
-		if (entinfo.valid) {
-			areanum = BotPointAreaNum(entinfo.origin);
-			if (areanum) {// && trap_AAS_AreaReachability(areanum)) {
-				//NOTE: just assume the bot knows where the person is
-				//if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, client)) {
-					bs->teamgoal.entitynum = client;
-					bs->teamgoal.areanum = areanum;
-					VectorCopy(entinfo.origin, bs->teamgoal.origin);
-					VectorSet(bs->teamgoal.mins, -8, -8, -8);
-					VectorSet(bs->teamgoal.maxs, 8, 8, 8);
-				//}
-			}
-		}
-		//if the other is not visible
-		if (bs->teamgoal.entitynum < 0) {
-			BotAI_BotInitialChat(bs, "whereareyou", netname, NULL);
-			client = ClientFromName(netname);
-			trap_BotEnterChat(bs->cs, client, CHAT_TELL);
-			return;
-		}
-	}
-	else if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
-		//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
-		//client = ClientFromName(netname);
-		//trap_BotEnterChat(bs->cs, client, CHAT_TELL);
-		return;
-	}
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_CAMPORDER;
-	//get the team goal time
-	bs->teamgoal_time = BotGetTime(match);
-	//set the team goal time
-	if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + TEAM_CAMP_TIME;
-	//not arrived yet
-	bs->arrive_time = 0;
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_Patrol
-==================
-*/
-void BotMatch_Patrol(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (!TeamPlayIsOn()) return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//get the patrol waypoints
-	if (!BotGetPatrolWaypoints(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_PATROL;
-	//get the team goal time
-	bs->teamgoal_time = BotGetTime(match);
-	//set the team goal time if not set already
-	if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + TEAM_PATROL_TIME;
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_GetFlag
-==================
-*/
-void BotMatch_GetFlag(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (gametype == GT_CTF) {
-		if (!ctf_redflag.areanum || !ctf_blueflag.areanum)
-			return;
-	}
-#ifdef MISSIONPACK
-	else if (gametype == GT_1FCTF) {
-		if (!ctf_neutralflag.areanum || !ctf_redflag.areanum || !ctf_blueflag.areanum)
-			return;
-	}
-#endif
-	else {
-		return;
-	}
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_GETFLAG;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + CTF_GETFLAG_TIME;
-	// get an alternate route in ctf
-	if (gametype == GT_CTF) {
-		//get an alternative route goal towards the enemy base
-		BotGetAlternateRouteGoal(bs, BotOppositeTeam(bs));
-	}
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
-BotMatch_AttackEnemyBase
-==================
-*/
-void BotMatch_AttackEnemyBase(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (gametype == GT_CTF) {
-		BotMatch_GetFlag(bs, match);
-	}
-#ifdef MISSIONPACK
-	else if (gametype == GT_1FCTF || gametype == GT_OBELISK || gametype == GT_HARVESTER) {
-		if (!redobelisk.areanum || !blueobelisk.areanum)
-			return;
-	}
-#endif
-	else {
-		return;
-	}
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_ATTACKENEMYBASE;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + TEAM_ATTACKENEMYBASE_TIME;
-	bs->attackaway_time = 0;
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-#ifdef MISSIONPACK
-/*
-==================
-BotMatch_Harvest
-==================
-*/
-void BotMatch_Harvest(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (gametype == GT_HARVESTER) {
-		if (!neutralobelisk.areanum || !redobelisk.areanum || !blueobelisk.areanum)
-			return;
-	}
-	else {
-		return;
-	}
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_HARVEST;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + TEAM_HARVEST_TIME;
-	bs->harvestaway_time = 0;
-	//
-	BotSetTeamStatus(bs);
-	// remember last ordered task
-	BotRememberLastOrderedTask(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-#endif
-
-/*
-==================
-BotMatch_RushBase
-==================
-*/
-void BotMatch_RushBase(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	if (gametype == GT_CTF) {
-		if (!ctf_redflag.areanum || !ctf_blueflag.areanum)
-			return;
-	}
-#ifdef MISSIONPACK
-	else if (gametype == GT_1FCTF || gametype == GT_HARVESTER) {
-		if (!redobelisk.areanum || !blueobelisk.areanum)
-			return;
-	}
-#endif
-	else {
-		return;
-	}
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match)) return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_RUSHBASE;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + CTF_RUSHBASE_TIME;
-	bs->rushbaseaway_time = 0;
-	//
-	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	return;
 }
 
 /*
@@ -1011,7 +575,9 @@ void BotMatch_TaskPreference(bot_state_t *bs, bot_match_t *match) {
 	int teammate, preference;
 
 	ClientName(bs->client, netname, sizeof(netname));
-	if (Q_stricmp(netname, bs->teamleader) != 0) return;
+	if ( !Q_strequal(netname, bs->teamleader)) {
+		return;
+	}
 
 	trap_BotMatchVariable(match, NETNAME, teammatename, sizeof(teammatename));
 	teammate = ClientFromName(teammatename);
@@ -1049,48 +615,6 @@ void BotMatch_TaskPreference(bot_state_t *bs, bot_match_t *match) {
 
 /*
 ==================
-BotMatch_ReturnFlag
-==================
-*/
-void BotMatch_ReturnFlag(bot_state_t *bs, bot_match_t *match) {
-	char netname[MAX_MESSAGE_SIZE];
-	int client;
-
-	//if not in CTF mode
-	if (
-		gametype != GT_CTF
-#ifdef MISSIONPACK
-		&& gametype != GT_1FCTF
-#endif
-		)
-		return;
-	//if not addressed to this bot
-	if (!BotAddressedToBot(bs, match))
-		return;
-	//
-	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
-	//
-	client = FindClientByName(netname);
-	//
-	bs->decisionmaker = client;
-	bs->ordered = qtrue;
-	bs->order_time = FloatTime();
-	//set the time to send a message to the team mates
-	bs->teammessage_time = FloatTime() + 2 * random();
-	//set the ltg type
-	bs->ltgtype = LTG_RETURNFLAG;
-	//set the team goal time
-	bs->teamgoal_time = FloatTime() + CTF_RETURNFLAG_TIME;
-	bs->rushbaseaway_time = 0;
-	//
-	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
-}
-
-/*
-==================
 BotMatch_JoinSubteam
 ==================
 */
@@ -1099,14 +623,13 @@ void BotMatch_JoinSubteam(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 	int client;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	//get the sub team name
 	trap_BotMatchVariable(match, TEAMNAME, teammate, sizeof(teammate));
 	//set the sub team name
-	strncpy(bs->subteam, teammate, 32);
-	bs->subteam[31] = '\0';
+	Q_strncpyz(bs->subteam, teammate, 32);
 	//
 	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
 	BotAI_BotInitialChat(bs, "joinedteam", teammate, NULL);
@@ -1123,7 +646,7 @@ void BotMatch_LeaveSubteam(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 	int client;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	//
@@ -1139,13 +662,14 @@ void BotMatch_LeaveSubteam(bot_state_t *bs, bot_match_t *match) {
 
 /*
 ==================
-BotMatch_LeaveSubteam
+BotMatch_WhichTeam
 ==================
 */
 void BotMatch_WhichTeam(bot_state_t *bs, bot_match_t *match) {
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
+
 	//
 	if (strlen(bs->subteam)) {
 		BotAI_BotInitialChat(bs, "inteam", bs->subteam, NULL);
@@ -1168,7 +692,7 @@ void BotMatch_CheckPoint(bot_state_t *bs, bot_match_t *match) {
 	vec3_t position;
 	bot_waypoint_t *cp;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//
 	trap_BotMatchVariable(match, POSITION, buf, MAX_MESSAGE_SIZE);
 	VectorClear(position);
@@ -1222,7 +746,7 @@ void BotMatch_FormationSpace(bot_state_t *bs, bot_match_t *match) {
 	char buf[MAX_MESSAGE_SIZE];
 	float space;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	//
@@ -1245,7 +769,7 @@ void BotMatch_Dismiss(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 	int client;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
@@ -1270,7 +794,7 @@ void BotMatch_Suicide(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 	int client;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	//
@@ -1292,13 +816,12 @@ void BotMatch_StartTeamLeaderShip(bot_state_t *bs, bot_match_t *match) {
 	int client;
 	char teammate[MAX_MESSAGE_SIZE];
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if chats for him or herself
 	if (match->subtype & ST_I) {
 		//get the team mate that will be the team leader
 		trap_BotMatchVariable(match, NETNAME, teammate, sizeof(teammate));
-		strncpy(bs->teamleader, teammate, sizeof(bs->teamleader));
-		bs->teamleader[sizeof(bs->teamleader)-1] = '\0';
+		Q_strncpyz(bs->teamleader, teammate, sizeof(bs->teamleader));
 	}
 	//chats for someone else
 	else {
@@ -1319,7 +842,7 @@ void BotMatch_StopTeamLeaderShip(bot_state_t *bs, bot_match_t *match) {
 	char teammate[MAX_MESSAGE_SIZE];
 	char netname[MAX_MESSAGE_SIZE];
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//get the team mate that stops being the team leader
 	trap_BotMatchVariable(match, TEAMMATE, teammate, sizeof(teammate));
 	//if chats for him or herself
@@ -1332,7 +855,7 @@ void BotMatch_StopTeamLeaderShip(bot_state_t *bs, bot_match_t *match) {
 		client = FindClientByName(teammate);
 	} //end else
 	if (client >= 0) {
-		if (!Q_stricmp(bs->teamleader, ClientName(client, netname, sizeof(netname)))) {
+		if (Q_strequal(bs->teamleader, ClientName(client, netname, sizeof(netname)))) {
 			bs->teamleader[0] = '\0';
 			notleader[client] = qtrue;
 		}
@@ -1347,11 +870,11 @@ BotMatch_WhoIsTeamLeader
 void BotMatch_WhoIsTeamLeader(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 
 	ClientName(bs->client, netname, sizeof(netname));
 	//if this bot IS the team leader
-	if (!Q_stricmp(netname, bs->teamleader)) {
+	if (Q_strequal(netname, bs->teamleader)) {
 		trap_EA_SayTeam(bs->client, "I'm the team leader\n");
 	}
 }
@@ -1426,7 +949,6 @@ void BotMatch_WhatAreYouDoing(bot_state_t *bs, bot_match_t *match) {
 			BotAI_BotInitialChat(bs, "returningflag", NULL);
 			break;
 		}
-#ifdef MISSIONPACK
 		case LTG_ATTACKENEMYBASE:
 		{
 			BotAI_BotInitialChat(bs, "attackingenemybase", NULL);
@@ -1437,7 +959,22 @@ void BotMatch_WhatAreYouDoing(bot_state_t *bs, bot_match_t *match) {
 			BotAI_BotInitialChat(bs, "harvesting", NULL);
 			break;
 		}
-#endif
+//#endif
+		case LTG_HOLDPOINTA:
+		{
+			BotAI_BotInitialChat(bs, "dd_holdingpointa", NULL);
+			break;
+		}
+		case LTG_HOLDPOINTB:
+		{
+			BotAI_BotInitialChat(bs, "dd_holdingpointb", NULL);
+			break;
+		}
+		case LTG_HOLDDOMPOINT:
+		{
+			BotAI_BotInitialChat(bs, "dom_holdpoint", NULL);
+			break;
+		}
 		default:
 		{
 			BotAI_BotInitialChat(bs, "roaming", NULL);
@@ -1459,7 +996,9 @@ void BotMatch_WhatIsMyCommand(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_NETNAME];
 
 	ClientName(bs->client, netname, sizeof(netname));
-	if (Q_stricmp(netname, bs->teamleader) != 0) return;
+	if ( !Q_strequal(netname, bs->teamleader) ) {
+		return;
+	}
 	bs->forceorders = qtrue;
 }
 
@@ -1481,8 +1020,9 @@ float BotNearestVisibleItem(bot_state_t *bs, char *itemname, bot_goal_t *goal) {
 	do {
 		i = trap_BotGetLevelItemGoal(i, itemname, &tmpgoal);
 		trap_BotGoalName(tmpgoal.number, name, sizeof(name));
-		if (Q_stricmp(itemname, name) != 0)
+		if ( !Q_strequal(itemname, name) ) {
 			continue;
+		}
 		VectorSubtract(tmpgoal.origin, bs->origin, dir);
 		dist = VectorLength(dir);
 		if (dist < bestdist) {
@@ -1525,7 +1065,6 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match) {
 		"Heavy Armor",
 		"Red Flag",
 		"Blue Flag",
-#ifdef MISSIONPACK
 		"Nailgun",
 		"Prox Launcher",
 		"Chaingun",
@@ -1537,12 +1076,12 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match) {
 		"Red Obelisk",
 		"Blue Obelisk",
 		"Neutral Obelisk",
-#endif
 		NULL
 	};
 	//
-	if (!TeamPlayIsOn())
+	if (G_IsADMBasedGametype(gametype))
 		return;
+
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match))
 		return;
@@ -1557,11 +1096,7 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match) {
 		}
 	}
 	if (bestitem != -1) {
-		if (gametype == GT_CTF
-#ifdef MISSIONPACK
-			|| gametype == GT_1FCTF
-#endif
-			) {
+		if (G_UsesTeamFlags(gametype)) {
 			redtt = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, ctf_redflag.areanum, TFL_DEFAULT);
 			bluett = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, ctf_blueflag.areanum, TFL_DEFAULT);
 			if (redtt < (redtt + bluett) * 0.4) {
@@ -1574,8 +1109,7 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match) {
 				BotAI_BotInitialChat(bs, "location", nearbyitems[bestitem], NULL);
 			}
 		}
-#ifdef MISSIONPACK
-		else if (gametype == GT_OBELISK || gametype == GT_HARVESTER) {
+		else if (gametype == GT_HARVESTER || gametype == GT_OBELISK) {
 			redtt = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, redobelisk.areanum, TFL_DEFAULT);
 			bluett = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, blueobelisk.areanum, TFL_DEFAULT);
 			if (redtt < (redtt + bluett) * 0.4) {
@@ -1588,7 +1122,6 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match) {
 				BotAI_BotInitialChat(bs, "location", nearbyitems[bestitem], NULL);
 			}
 		}
-#endif
 		else {
 			BotAI_BotInitialChat(bs, "location", nearbyitems[bestitem], NULL);
 		}
@@ -1608,7 +1141,7 @@ void BotMatch_LeadTheWay(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE], teammate[MAX_MESSAGE_SIZE];
 	int client, areanum, other;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 	//if someone asks for someone else
@@ -1677,7 +1210,7 @@ void BotMatch_Kill(bot_state_t *bs, bot_match_t *match) {
 	char netname[MAX_MESSAGE_SIZE];
 	int client;
 
-	if (!TeamPlayIsOn()) return;
+	if (G_IsADMBasedGametype(gametype)) return;
 	//if not addressed to this bot
 	if (!BotAddressedToBot(bs, match)) return;
 
@@ -1700,9 +1233,10 @@ void BotMatch_Kill(bot_state_t *bs, bot_match_t *match) {
 	bs->teamgoal_time = FloatTime() + TEAM_KILL_SOMEONE;
 	//
 	BotSetTeamStatus(bs);
-#ifdef DEBUG
-	BotPrintTeamGoal(bs);
-#endif //DEBUG
+	// Actual outputting of the message requires developer mode.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
 }
 
 /*
@@ -1714,10 +1248,10 @@ void BotMatch_CTF(bot_state_t *bs, bot_match_t *match) {
 
 	char flag[128], netname[MAX_NETNAME];
 
-	if (gametype == GT_CTF) {
+	if (G_UsesTeamFlags(gametype) && !G_UsesTheWhiteFlag(gametype)) {
 		trap_BotMatchVariable(match, FLAG, flag, sizeof(flag));
 		if (match->subtype & ST_GOTFLAG) {
-			if (!Q_stricmp(flag, "red")) {
+			if (Q_strequal(flag, "red")) {
 				bs->redflagstatus = 1;
 				if (BotTeam(bs) == TEAM_BLUE) {
 					trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
@@ -1741,19 +1275,17 @@ void BotMatch_CTF(bot_state_t *bs, bot_match_t *match) {
 			bs->flagstatuschanged = 1;
 		}
 		else if (match->subtype & ST_RETURNEDFLAG) {
-			if (!Q_stricmp(flag, "red")) bs->redflagstatus = 0;
+			if (Q_strequal(flag, "red")) bs->redflagstatus = 0;
 			else bs->blueflagstatus = 0;
 			bs->flagstatuschanged = 1;
 		}
 	}
-#ifdef MISSIONPACK
-	else if (gametype == GT_1FCTF) {
+	else if (G_UsesTheWhiteFlag(gametype)) {
 		if (match->subtype & ST_1FCTFGOTFLAG) {
 			trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
 			bs->flagcarrier = ClientFromName(netname);
 		}
 	}
-#endif
 }
 
 void BotMatch_EnterGame(bot_state_t *bs, bot_match_t *match) {
@@ -1764,6 +1296,10 @@ void BotMatch_EnterGame(bot_state_t *bs, bot_match_t *match) {
 	client = FindClientByName(netname);
 	if (client >= 0) {
 		notleader[client] = qfalse;
+	}
+	if (gametype == GT_DOMINATION) {
+		// Assign a control point at start.
+		BotSetDominationPoint(bs,-1);
 	}
 	//NOTE: eliza chats will catch this
 	//Com_sprintf(buf, sizeof(buf), "heya %s", netname);
@@ -1792,64 +1328,87 @@ int BotMatchMessage(bot_state_t *bs, char *message) {
 	match.type = 0;
 	//if it is an unknown message
 	if (!trap_BotFindMatch(message, &match, MTCONTEXT_MISC
-											|MTCONTEXT_INITIALTEAMCHAT
-											|MTCONTEXT_CTF)) {
+	|MTCONTEXT_INITIALTEAMCHAT
+	|MTCONTEXT_CTF
+	|MTCONTEXT_DD)) {
 		return qfalse;
 	}
 	//react to the found message
 	switch(match.type)
 	{
 		case MSG_HELP:					//someone calling for help
+		{
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_TEAMHELP, TEAM_HELP_TIME);
+			break;
+		}
 		case MSG_ACCOMPANY:				//someone calling for company
 		{
-			BotMatch_HelpAccompany(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_TEAMACCOMPANY, TEAM_ACCOMPANY_TIME);
 			break;
 		}
 		case MSG_DEFENDKEYAREA:			//teamplay defend a key area
 		{
-			BotMatch_DefendKeyArea(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_DEFENDKEYAREA, TEAM_DEFENDKEYAREA_TIME);
 			break;
 		}
 		case MSG_CAMP:					//camp somewhere
 		{
-			BotMatch_Camp(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_CAMP, TEAM_CAMP_TIME);
 			break;
 		}
 		case MSG_PATROL:				//patrol between several key areas
 		{
-			BotMatch_Patrol(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_PATROL, TEAM_PATROL_TIME);
 			break;
 		}
 		//CTF & 1FCTF
 		case MSG_GETFLAG:				//ctf get the enemy flag
 		{
-			BotMatch_GetFlag(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_GETFLAG, CTF_GETFLAG_TIME);
 			break;
 		}
-#ifdef MISSIONPACK
 		//CTF & 1FCTF & Obelisk & Harvester
 		case MSG_ATTACKENEMYBASE:
 		{
-			BotMatch_AttackEnemyBase(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_ATTACKENEMYBASE, TEAM_ATTACKENEMYBASE_TIME);
 			break;
 		}
 		//Harvester
 		case MSG_HARVEST:
 		{
-			BotMatch_Harvest(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_HARVEST, TEAM_HARVEST_TIME);
 			break;
 		}
-#endif
 		//CTF & 1FCTF & Harvester
 		case MSG_RUSHBASE:				//ctf rush to the base
 		{
-			BotMatch_RushBase(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_RUSHBASE, CTF_RUSHBASE_TIME);
 			break;
 		}
 		//CTF & 1FCTF
 		case MSG_RETURNFLAG:
 		{
-			BotMatch_ReturnFlag(bs, &match);
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_RETURNFLAG, CTF_RETURNFLAG_TIME);
+			break;
+		}
+		case MSG_GETITEM:
+		{
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_GETITEM, TEAM_GETITEM_TIME);
+			break;
+		}
+		case MSG_HOLDPOINTA:
+		{
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_HOLDPOINTA, TEAM_HOLDPOINTA_TIME);
+			break;
+		}
+		case MSG_HOLDPOINTB:
+		{
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_HOLDPOINTB, TEAM_HOLDPOINTB_TIME);
+			break;
+		}
+		case MSG_HOLDDOMPOINT:
+		{
+			BotMatch_AcknowledgeOrder(bs, &match, LTG_HOLDDOMPOINT, TEAM_HOLDDOMPOINT_TIME);
 			break;
 		}
 		//CTF & 1FCTF & Obelisk & Harvester
@@ -1862,11 +1421,6 @@ int BotMatchMessage(bot_state_t *bs, char *message) {
 		case MSG_CTF:
 		{
 			BotMatch_CTF(bs, &match);
-			break;
-		}
-		case MSG_GETITEM:
-		{
-			BotMatch_GetItem(bs, &match);
 			break;
 		}
 		case MSG_JOINSUBTEAM:			//join a sub team
@@ -1980,3 +1534,484 @@ int BotMatchMessage(bot_state_t *bs, char *message) {
 	}
 	return qtrue;
 }
+
+/*
+==================
+BotMatch_AcknowledgeOrder
+
+General purpose handling of bot orders. Done this way since previously there were many different functions that did mostly the same thing.
+It has A LOT OF ROOM for optimization.
+==================
+*/
+void BotMatch_AcknowledgeOrder(bot_state_t *bs, bot_match_t *match, int ltgType, float teamGoalTime) {
+	char teammate[MAX_MESSAGE_SIZE];
+	char itemname[MAX_MESSAGE_SIZE];
+	char netname[MAX_MESSAGE_SIZE];
+	int client, other, areanum, ltgTypeInternal;
+	aas_entityinfo_t entinfo;
+	bot_match_t teammatematch;
+
+	// Orders can only be given in team-based modes.
+	if (G_IsADMBasedGametype(gametype)) {
+		return;
+	}
+	// Gametype order restriction zone.
+	// We need to set a LTG. Where a bot cannot accomplish an order, patrols.
+	ltgTypeInternal = LTG_PATROL;
+	switch (ltgType) {
+		case LTG_DEFENDKEYAREA: {
+			// in eCTF AvD mode, only defenders defend. Attackers patrol.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && !BotIsOnAttackingTeam(bs)) {
+				ltgTypeInternal = LTG_DEFENDKEYAREA;
+			}
+			// In CTF, 1FCTF and regular eCTF, we need a flag to defend.
+			else if (G_UsesTeamFlags(gametype) && BotIsThereOurFlagInTheMap(bs)) {
+				ltgTypeInternal = LTG_DEFENDKEYAREA;
+			}
+			// In Harvester and Overload, we need an obelisk to defend.
+			else if ((gametype == GT_HARVESTER || gametype == GT_OBELISK) && BotIsThereOurObeliskInTheMap(bs)) {
+				ltgTypeInternal = LTG_DEFENDKEYAREA;
+			}
+			// In Double DOM, we send the bot to defend one of the points we already own.
+			else if (gametype == GT_DOUBLE_D) {
+				if (BotTeamOwnsControlPoint(bs,level.pointStatusA)) {
+					ltgTypeInternal = LTG_HOLDPOINTA;
+				}
+				else if (BotTeamOwnsControlPoint(bs,level.pointStatusB)) {
+					ltgTypeInternal = LTG_HOLDPOINTB;
+				}
+				// If we don't own points, pick one at random and hold it.
+				else {
+					if (random() * 10 >= 5) {
+						ltgTypeInternal = LTG_HOLDPOINTA;
+					}
+					else {
+						ltgTypeInternal = LTG_HOLDPOINTB;
+					}
+				}
+			}
+			// In Domination, we pick a point we own, and hold onto it.
+			else if (gametype == GT_DOMINATION) {
+				BotSetOwnDominationPoint(bs);
+				ltgTypeInternal = LTG_HOLDDOMPOINT;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_CAMP:
+		case LTG_CAMPORDER: {
+			// in eCTF AvD mode, only defenders can camp.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && !BotIsOnAttackingTeam(bs)) {
+				if (trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_CAMPER, 0, 1) > random()) {
+					ltgTypeInternal = LTG_CAMP;
+				}
+				else {
+					ltgTypeInternal = LTG_DEFENDKEYAREA;
+				}
+			}
+			// In Double DOM, we send the bot to defend one of the points we already own.
+			else if (gametype == GT_DOUBLE_D) {
+				if (BotTeamOwnsControlPoint(bs,level.pointStatusA)) {
+					ltgTypeInternal = LTG_HOLDPOINTA;
+				}
+				else if (BotTeamOwnsControlPoint(bs,level.pointStatusB)) {
+					ltgTypeInternal = LTG_HOLDPOINTB;
+				}
+				// If we don't own points, pick one at random and hold it.
+				else {
+					float rnd = random() * 10;
+					if (rnd >= 5) {
+						ltgTypeInternal = LTG_HOLDPOINTA;
+					}
+					else {
+						ltgTypeInternal = LTG_HOLDPOINTB;
+					}
+				}
+			}
+			// In Domination, we pick a point we own, and hold onto it.
+			else if (gametype == GT_DOMINATION) {
+				BotSetOwnDominationPoint(bs);
+				ltgTypeInternal = LTG_HOLDDOMPOINT;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_GETFLAG: {
+			// in eCTF AvD mode, only attackers go for the flag.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && BotIsOnAttackingTeam(bs)) {
+				ltgTypeInternal = LTG_GETFLAG;
+			}
+			// In CTF and regular eCTF, we need an enemy flag to attack.
+			else if (G_UsesTeamFlags(gametype) && BotIsThereAnEnemyFlagInTheMap(bs)) {
+				ltgTypeInternal = LTG_GETFLAG;
+			}
+			// In 1FCTF, we need the neutral flag to attack.
+			else if (G_UsesTheWhiteFlag(gametype) && BotIsThereANeutralFlagInTheMap()) {
+				ltgTypeInternal = LTG_GETFLAG;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_ATTACKENEMYBASE: {
+			// in eCTF AvD mode, only attackers attack.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && BotIsOnAttackingTeam(bs)) {
+				ltgTypeInternal = LTG_GETFLAG;
+			}
+			// In other flag-based modes, they attack.
+			else if (G_UsesTeamFlags(gametype)) {
+				ltgTypeInternal = LTG_GETFLAG;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_HARVEST: {
+			// We need both an obelisk to attack and (if harvesterFromBodies is disabled) a neutral obelisk.
+			if (gametype == GT_HARVESTER && BotIsThereANeutralObeliskInTheMap()) {
+				ltgTypeInternal = LTG_HARVEST;
+			}
+			else if (gametype == GT_HARVESTER && !BotIsThereANeutralObeliskInTheMap() && (g_harvesterFromBodies.integer <= 0)) {
+				ltgTypeInternal = LTG_HARVEST;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_RUSHBASE: {
+			// in eCTF AvD mode, only attackers go for the flag.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && BotIsOnAttackingTeam(bs)) {
+				ltgTypeInternal = LTG_RUSHBASE;
+			}
+			// In CTF, 1FCTF and regular eCTF, we need an enemy flag to defend.
+			else if (G_UsesTeamFlags(gametype) && BotIsThereAnEnemyFlagInTheMap(bs)) {
+				ltgTypeInternal = LTG_RUSHBASE;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_RETURNFLAG: {
+			// in eCTF AvD mode, only defenders can recover the flag.
+			if (gametype == GT_CTF_ELIMINATION && g_elimination_ctf_oneway.integer && !BotIsOnAttackingTeam(bs) && !BotIsFlagOnOurBase(bs)) {
+				ltgTypeInternal = LTG_RETURNFLAG;
+			}
+			// In CTF and eCTF, if the flag was lost, recover it.
+			else if (G_UsesTeamFlags(gametype) && !G_UsesTheWhiteFlag(gametype) && !BotIsFlagOnOurBase(bs)) {
+				ltgTypeInternal = LTG_RETURNFLAG;
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_HOLDPOINTA: {
+			// In addition to the gamemode, we also need both points.
+			if (gametype == GT_DOUBLE_D) {
+				if (BotIsThereDDPointAInTheMap() && BotIsThereDDPointBInTheMap()) {
+					ltgTypeInternal = LTG_HOLDPOINTA;
+				}
+				else {
+					ltgTypeInternal = LTG_PATROL;
+				}
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_HOLDPOINTB: {
+			// In addition to the gamemode, we also need both points.
+			if (gametype == GT_DOUBLE_D) {
+				if (BotIsThereDDPointAInTheMap() && BotIsThereDDPointBInTheMap()) {
+					ltgTypeInternal = LTG_HOLDPOINTB;
+				}
+				else {
+					ltgTypeInternal = LTG_PATROL;
+				}
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_HOLDDOMPOINT: {
+			if (gametype == GT_DOMINATION) {
+				// In addition to the gamemode, we also need at least one point.
+				if (BotAreThereDOMPointsInTheMap()) {
+					BotSetDominationPoint(bs,-1);
+					ltgTypeInternal = LTG_HOLDDOMPOINT;
+				}
+				else {
+					ltgTypeInternal = LTG_PATROL;
+				}
+			}
+			else {
+				ltgTypeInternal = LTG_PATROL;
+			}
+			break;
+		}
+		case LTG_GETITEM: {
+			ltgTypeInternal = LTG_GETITEM;
+			break;
+		}
+		case LTG_TEAMACCOMPANY: {
+			ltgTypeInternal = LTG_TEAMACCOMPANY;
+			break;
+		}
+		case LTG_TEAMHELP: {
+			ltgTypeInternal = LTG_TEAMHELP;
+			break;
+		}
+		case LTG_PATROL:
+		default: {
+			ltgTypeInternal = LTG_PATROL;
+			break;
+		}
+	}
+	//if not addressed to this bot
+	if (!BotAddressedToBot(bs, match)) return;
+	if (ltgTypeInternal == LTG_CAMP || ltgTypeInternal == LTG_CAMPORDER) {
+		trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
+		//asked for someone else
+		client = FindClientByName(netname);
+		//if there's no valid client with this name
+		if (client < 0) {
+			BotAI_BotInitialChat(bs, "whois", netname, NULL);
+			trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
+			return;
+		}
+		//get the match variable
+		trap_BotMatchVariable(match, KEYAREA, itemname, sizeof(itemname));
+		//in CTF it could be the base
+		if (match->subtype & ST_THERE) {
+			//camp at the spot the bot is currently standing
+			bs->teamgoal.entitynum = bs->entitynum;
+			bs->teamgoal.areanum = bs->areanum;
+			VectorCopy(bs->origin, bs->teamgoal.origin);
+			VectorSet(bs->teamgoal.mins, -8, -8, -8);
+			VectorSet(bs->teamgoal.maxs, 8, 8, 8);
+		}
+		else if (match->subtype & ST_HERE) {
+			//if this is the bot self
+			if (client == bs->client) return;
+			//
+			bs->teamgoal.entitynum = -1;
+			BotEntityInfo(client, &entinfo);
+			//if info is valid (in PVS)
+			if (entinfo.valid) {
+				areanum = BotPointAreaNum(entinfo.origin);
+				if (areanum) {/* && trap_AAS_AreaReachability(areanum)) { */
+					//NOTE: just assume the bot knows where the person is
+					/* if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, client)) { */
+						bs->teamgoal.entitynum = client;
+						bs->teamgoal.areanum = areanum;
+						VectorCopy(entinfo.origin, bs->teamgoal.origin);
+						VectorSet(bs->teamgoal.mins, -8, -8, -8);
+						VectorSet(bs->teamgoal.maxs, 8, 8, 8);
+					/* } */
+				}
+			}
+			//if the other is not visible
+			if (bs->teamgoal.entitynum < 0) {
+				BotAI_BotInitialChat(bs, "whereareyou", netname, NULL);
+				client = ClientFromName(netname);
+				trap_BotEnterChat(bs->cs, client, CHAT_TELL);
+				return;
+			}
+		}
+		else if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
+			//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
+			//client = ClientFromName(netname);
+			//trap_BotEnterChat(bs->cs, client, CHAT_TELL);
+			return;
+		}
+	}
+	else if (ltgTypeInternal == LTG_TEAMACCOMPANY || ltgTypeInternal == LTG_TEAMHELP) {
+		//get the team mate name
+		trap_BotMatchVariable(match, TEAMMATE, teammate, sizeof(teammate));
+		//get the client to help
+		if (trap_BotFindMatch(teammate, &teammatematch, MTCONTEXT_TEAMMATE) &&
+				//if someone asks for him or herself
+				teammatematch.type == MSG_ME) {
+			//get the netname
+			trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
+			client = ClientFromName(netname);
+			other = qfalse;
+		}
+		else {
+			//asked for someone else
+			client = FindClientByName(teammate);
+			//if this is the bot self
+			if (client == bs->client) {
+				other = qfalse;
+			}
+			else if (!BotSameTeam(bs, client)) {
+				//FIXME: say "I don't help the enemy"
+				return;
+			}
+			else {
+				other = qtrue;
+			}
+		}
+		//if the bot doesn't know who to help (FindClientByName returned -1)
+		if (client < 0) {
+			if (other) BotAI_BotInitialChat(bs, "whois", teammate, NULL);
+			else BotAI_BotInitialChat(bs, "whois", netname, NULL);
+			client = ClientFromName(netname);
+			trap_BotEnterChat(bs->cs, client, CHAT_TELL);
+			return;
+		}
+		//don't help or accompany yourself
+		if (client == bs->client) {
+			return;
+		}
+		//
+		bs->teamgoal.entitynum = -1;
+		BotEntityInfo(client, &entinfo);
+		//if info is valid (in PVS)
+		if (entinfo.valid) {
+			areanum = BotPointAreaNum(entinfo.origin);
+			if (areanum) {// && trap_AAS_AreaReachability(areanum)) {
+				bs->teamgoal.entitynum = client;
+				bs->teamgoal.areanum = areanum;
+				VectorCopy(entinfo.origin, bs->teamgoal.origin);
+				VectorSet(bs->teamgoal.mins, -8, -8, -8);
+				VectorSet(bs->teamgoal.maxs, 8, 8, 8);
+			}
+		}
+		//if no teamgoal yet
+		if (bs->teamgoal.entitynum < 0) {
+			//if near an item
+			if (match->subtype & ST_NEARITEM) {
+				//get the match variable
+				trap_BotMatchVariable(match, ITEM, itemname, sizeof(itemname));
+				//
+				if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
+					//BotAI_BotInitialChat(bs, "cannotfind", itemname, NULL);
+					//trap_BotEnterChat(bs->cs, bs->client, CHAT_TEAM);
+					return;
+				}
+			}
+		}
+		//
+		if (bs->teamgoal.entitynum < 0) {
+			if (other) BotAI_BotInitialChat(bs, "whereis", teammate, NULL);
+			else BotAI_BotInitialChat(bs, "whereareyou", netname, NULL);
+			client = ClientFromName(netname);
+			trap_BotEnterChat(bs->cs, client, CHAT_TEAM);
+			return;
+		}
+		//the team mate
+		bs->teammate = client;
+		//
+		trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
+		//
+		client = ClientFromName(netname);
+	}
+	else {
+		if (ltgTypeInternal == LTG_PATROL) {
+			//get the patrol waypoints
+			if (!BotGetPatrolWaypoints(bs, match)) return;
+		}
+		else if (ltgTypeInternal == LTG_DEFENDKEYAREA || ltgTypeInternal == LTG_HOLDDOMPOINT ||
+				ltgTypeInternal == LTG_HOLDPOINTA || ltgTypeInternal == LTG_HOLDPOINTB ||
+				ltgTypeInternal == LTG_GETITEM) {
+			if (!BotGetMessageTeamGoal(bs, itemname, &bs->teamgoal)) {
+				return;
+			}
+		}
+		trap_BotMatchVariable(match, NETNAME, netname, sizeof(netname));
+		if (ltgTypeInternal == LTG_GETITEM) {
+			client = ClientOnSameTeamFromName(bs, netname);
+		}
+		else if (ltgTypeInternal == LTG_DEFENDKEYAREA || ltgTypeInternal == LTG_HOLDDOMPOINT ||
+				ltgTypeInternal == LTG_HOLDPOINTA || ltgTypeInternal == LTG_HOLDPOINTB) {
+			client = ClientFromName(netname);
+		}
+		else {
+			client = FindClientByName(netname);
+		}
+	}
+
+	//the team mate who ordered
+	bs->decisionmaker = client;
+	bs->ordered = qtrue;
+	bs->order_time = FloatTime();
+
+	if (ltgTypeInternal == LTG_TEAMACCOMPANY || ltgTypeInternal == LTG_TEAMHELP) {
+		//last time the team mate was assumed visible
+		bs->teammatevisible_time = FloatTime();
+	}
+	//set the time to send a message to the team mates
+	bs->teammessage_time = FloatTime() + 2 * random();
+	//set the ltg type
+	bs->ltgtype = ltgTypeInternal;
+
+	if (ltgTypeInternal == LTG_GETITEM || ltgTypeInternal == LTG_GETFLAG ||
+			ltgTypeInternal == LTG_ATTACKENEMYBASE || ltgTypeInternal == LTG_HARVEST) {
+		//set the team goal time
+		bs->teamgoal_time = FloatTime() + teamGoalTime;
+	}
+	else {
+		//get the team goal time
+		bs->teamgoal_time = BotGetTime(match);
+		//set the team goal time
+		if (!bs->teamgoal_time) bs->teamgoal_time = FloatTime() + teamGoalTime;
+	}
+
+	if (ltgTypeInternal == LTG_CAMP || ltgTypeInternal == LTG_CAMPORDER) {
+		//not arrived yet
+		bs->arrive_time = 0;
+	}
+	else if (ltgTypeInternal == LTG_GETFLAG) {
+		// get an alternate route in ctf
+		if (G_UsesTeamFlags(gametype)) {
+			//get an alternative route goal towards the enemy base
+			BotGetAlternateRouteGoal(bs, BotOppositeTeam(bs));
+		}
+	}
+	else if (ltgTypeInternal == LTG_ATTACKENEMYBASE) {
+		bs->attackaway_time = 0;
+	}
+	else if (ltgTypeInternal == LTG_HARVEST) {
+		bs->harvestaway_time = 0;
+	}
+	else if (ltgTypeInternal == LTG_RUSHBASE || ltgTypeInternal == LTG_RETURNFLAG) {
+		bs->rushbaseaway_time = 0;
+	}
+	else if (ltgTypeInternal == LTG_TEAMACCOMPANY) {
+		bs->formation_dist = 3.5 * 32;		//3.5 meter
+		bs->arrive_time = 0;
+	}
+	else {
+		//away from defending
+		bs->defendaway_time = 0;
+	}
+
+	if (ltgTypeInternal != LTG_TEAMHELP) {
+		BotSetTeamStatus(bs);
+	}
+
+	if (ltgTypeInternal == LTG_DEFENDKEYAREA || ltgTypeInternal == LTG_HOLDDOMPOINT ||
+			ltgTypeInternal == LTG_HOLDPOINTA || ltgTypeInternal == LTG_HOLDPOINTB ||
+			ltgTypeInternal == LTG_CAMP || ltgTypeInternal == LTG_CAMPORDER ||
+			ltgTypeInternal == LTG_PATROL || ltgTypeInternal == LTG_TEAMACCOMPANY) {
+		// remember last ordered task
+		BotRememberLastOrderedTask(bs);
+	}
+
+	// Actual outputting of the message requires developer mode.
+	if (bot_developer.integer && bot_debugLTG.integer) {
+		BotPrintTeamGoal(bs);
+	}
+}
+

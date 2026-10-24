@@ -40,7 +40,7 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 	private int permissionCount = 0;
 	private static final int READ_EXTERNAL_STORAGE_PERMISSION_ID = 1;
 	private static final int WRITE_EXTERNAL_STORAGE_PERMISSION_ID = 2;
-	private static final String TAG = "ioquake3Quest";
+	private static final String TAG = "OpenArenaVR";
 
 	private boolean hapticsEnabled = false;
 
@@ -95,42 +95,28 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 	}
 
 	public void create() throws IOException {
-		// Prepare base game directory
-		new File("/sdcard/ioquake3Quest/baseq3").mkdirs();
+		// Prepare the OpenArena game directory
+		new File("/sdcard/OpenArenaVR/baseoa").mkdirs();
 
 		// Copy the command line params file and autoexec
-		copy_asset("/sdcard/ioquake3Quest", "commandline.txt", false);
-		copy_asset("/sdcard/ioquake3Quest/baseq3", "autoexec.cfg", false);
-		// Copy our special pak file and demo
-		copy_asset("/sdcard/ioquake3Quest/baseq3", "pakQ3Q.pk3", true);
-		copy_asset("/sdcard/ioquake3Quest/baseq3", "pak0.pk3", false);
-		//Copy Omarlego's excellent replacement background
-		copy_asset("/sdcard/ioquake3Quest/baseq3", "z_custom_background66.pk3", false);
+		copy_asset("/sdcard/OpenArenaVR", "commandline.txt", false);
+		copy_asset("/sdcard/OpenArenaVR/baseoa", "autoexec_oa.cfg", "autoexec.cfg", false);
+		// VR shaders (r_externalGLSL 1 loads them from this pak)
+		copy_asset("/sdcard/OpenArenaVR/baseoa", "pakQ3Q.pk3", true);
 		// Cleanup incompatible shaders
-		delete_asset("/sdcard/ioquake3Quest/baseq3/glsl");
+		delete_asset("/sdcard/OpenArenaVR/baseoa/glsl");
 
-		// If Team Arena is installed then copy necessary stuff
-		if (new File("/sdcard/ioquake3Quest/missionpack").exists()) {
-			copy_asset("/sdcard/ioquake3Quest/missionpack", "autoexec.cfg", false);
-			copy_asset("/sdcard/ioquake3Quest/missionpack", "pakQ3Q.pk3", true);
-			delete_asset("/sdcard/ioquake3Quest/missionpack/glsl");
-		}
-
-		// If Open Arena is installed then copy necessary stuff
-		if (new File("/sdcard/ioquake3Quest/baseoa").exists()) {
-			copy_asset("/sdcard/ioquake3Quest/baseoa", "autoexec_oa.cfg", "autoexec.cfg", false);
-			copy_asset("/sdcard/ioquake3Quest/baseoa", "pakQ3Q.pk3", true);
-			delete_asset("/sdcard/ioquake3Quest/baseoa/glsl");
-		}
+		// OpenArena 0.8.8 game data (GPL) ships inside the APK; unpack what is missing or changed
+		deploy_bundled_paks("/sdcard/OpenArenaVR/baseoa");
 
 		//Read these from a file and pass through
 		commandLineParams = new String();
 
 		//See if user is trying to use command line params
-		if (new File("/sdcard/ioquake3Quest/commandline.txt").exists()) {
+		if (new File("/sdcard/OpenArenaVR/commandline.txt").exists()) {
 			BufferedReader br;
 			try {
-				br = new BufferedReader(new FileReader("/sdcard/ioquake3Quest/commandline.txt"));
+				br = new BufferedReader(new FileReader("/sdcard/OpenArenaVR/commandline.txt"));
 				String s;
 				StringBuilder sb = new StringBuilder(0);
 				while ((s = br.readLine()) != null)
@@ -182,6 +168,54 @@ public class MainActivity extends SDLActivity // implements KeyEvent.Callback
 			new File(directory).mkdirs();
 			_copy_asset(name, path + "/" + newName);
 		}
+	}
+
+	// Copies every pk3 under assets/baseoa to the data dir unless a file with the same size is
+	// already there. Writes to a .part file first so an interrupted first start leaves no
+	// truncated pak behind.
+	public void deploy_bundled_paks(String dir) {
+		String[] paks;
+		try {
+			paks = getAssets().list("baseoa");
+		} catch (IOException e) {
+			Log.e(TAG, "No bundled game data: " + e);
+			return;
+		}
+		if (paks == null) return;
+		int copied = 0, failed = 0;
+		long t0 = System.currentTimeMillis();
+		for (String pak : paks) {
+			if (!pak.endsWith(".pk3")) continue;
+			File out = new File(dir, pak);
+			long size = -1;
+			try {
+				android.content.res.AssetFileDescriptor fd = getAssets().openFd("baseoa/" + pak);
+				size = fd.getLength();
+				fd.close();
+			} catch (IOException e) {
+				// compressed asset: size unknown, copy only if missing
+			}
+			if (out.exists() && (size < 0 || out.length() == size)) continue;
+			File part = new File(dir, pak + ".part");
+			try {
+				InputStream in = getAssets().open("baseoa/" + pak);
+				OutputStream os = new FileOutputStream(part);
+				byte[] buf = new byte[1 << 20];
+				int n;
+				while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+				os.close();
+				in.close();
+				out.delete();
+				if (!part.renameTo(out)) throw new IOException("rename failed");
+				copied++;
+			} catch (IOException e) {
+				Log.e(TAG, "Unpacking " + pak + " failed: " + e);
+				part.delete();
+				failed++;
+			}
+		}
+		Log.i(TAG, "OpenArena data: " + paks.length + " paks, " + copied + " unpacked, " + failed
+				+ " failed, " + (System.currentTimeMillis() - t0) + " ms");
 	}
 
 	public void delete_asset(String path) {

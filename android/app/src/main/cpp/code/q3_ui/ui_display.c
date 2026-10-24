@@ -31,10 +31,10 @@ DISPLAY OPTIONS MENU
 #include "ui_local.h"
 
 
-#define ART_FRAMEL			"menu/art/frame2_l"
-#define ART_FRAMER			"menu/art/frame1_r"
-#define ART_BACK0			"menu/art/back_0"
-#define ART_BACK1			"menu/art/back_1"
+#define ART_FRAMEL			"menu/" MENU_ART_DIR "/frame2_l"
+#define ART_FRAMER			"menu/" MENU_ART_DIR "/frame1_r"
+#define ART_BACK0			"menu/" MENU_ART_DIR "/back_0"
+#define ART_BACK1			"menu/" MENU_ART_DIR "/back_1"
 
 #define ID_GRAPHICS			10
 #define ID_DISPLAY			11
@@ -109,6 +109,30 @@ static void UI_DisplayOptionsMenu_Event( void* ptr, int event ) {
 	}
 }
 
+/*
+=================
+DisplayOptions_StatusBar_Brightness
+
+Descriptions should have 48 characters or less per line, and there can't be more than two lines.
+=================
+*/
+static void DisplayOptions_StatusBar_Brightness( void* ptr ) {
+	UI_DrawString( 320, 440, "Use the slider to control how bright", UI_CENTER|UI_SMALLFONT, colorWhite );
+	UI_DrawString( 320, 460, "the game is rendered on the screen.", UI_CENTER|UI_SMALLFONT, colorWhite );
+}
+
+/*
+=================
+DisplayOptions_StatusBar_ScreenSize
+
+Descriptions should have 48 characters or less per line, and there can't be more than two lines.
+=================
+*/
+static void DisplayOptions_StatusBar_ScreenSize( void* ptr ) {
+	UI_DrawString( 320, 440, "Use the slider to control how big/small", UI_CENTER|UI_SMALLFONT, colorWhite );
+	UI_DrawString( 320, 460, "the game is rendered on your screen.", UI_CENTER|UI_SMALLFONT, colorWhite );
+}
+
 
 /*
 ===============
@@ -157,6 +181,7 @@ static void UI_DisplayOptionsMenu_Init( void ) {
 	displayOptionsInfo.graphics.string				= "GRAPHICS";
 	displayOptionsInfo.graphics.style				= UI_RIGHT;
 	displayOptionsInfo.graphics.color				= color_red;
+	displayOptionsInfo.graphics.generic.statusbar	= DisplayOptions_StatusBar_Brightness;
 
 	displayOptionsInfo.display.generic.type			= MTYPE_PTEXT;
 	displayOptionsInfo.display.generic.flags		= QMF_RIGHT_JUSTIFY;
@@ -167,6 +192,7 @@ static void UI_DisplayOptionsMenu_Init( void ) {
 	displayOptionsInfo.display.string				= "DISPLAY";
 	displayOptionsInfo.display.style				= UI_RIGHT;
 	displayOptionsInfo.display.color				= color_red;
+	displayOptionsInfo.display.generic.statusbar	= DisplayOptions_StatusBar_ScreenSize;
 
 	displayOptionsInfo.sound.generic.type			= MTYPE_PTEXT;
 	displayOptionsInfo.sound.generic.flags			= QMF_RIGHT_JUSTIFY|QMF_PULSEIFFOCUS;

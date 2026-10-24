@@ -33,10 +33,10 @@ DRIVER INFORMATION MENU
 */
 
 
-#define DRIVERINFO_FRAMEL	"menu/art/frame2_l"
-#define DRIVERINFO_FRAMER	"menu/art/frame1_r"
-#define DRIVERINFO_BACK0	"menu/art/back_0"
-#define DRIVERINFO_BACK1	"menu/art/back_1"
+#define DRIVERINFO_FRAMEL	"menu/" MENU_ART_DIR "/frame2_l"
+#define DRIVERINFO_FRAMER	"menu/" MENU_ART_DIR "/frame1_r"
+#define DRIVERINFO_BACK0	"menu/" MENU_ART_DIR "/back_0"
+#define DRIVERINFO_BACK1	"menu/" MENU_ART_DIR "/back_1"
 
 static char* driverinfo_artlist[] = 
 {
@@ -195,7 +195,7 @@ static void UI_DriverInfo_Menu( void )
 	eptr = s_driverinfo.stringbuff;
 	while ( s_driverinfo.numstrings<40 && *eptr )
 	{
-		while ( *eptr && *eptr == ' ' )
+		while ( *eptr == ' ' )
 			*eptr++ = '\0';
 
 		// track start of valid string
@@ -231,12 +231,12 @@ GRAPHICS OPTIONS MENU
 =======================================================================
 */
 
-#define GRAPHICSOPTIONS_FRAMEL	"menu/art/frame2_l"
-#define GRAPHICSOPTIONS_FRAMER	"menu/art/frame1_r"
-#define GRAPHICSOPTIONS_BACK0	"menu/art/back_0"
-#define GRAPHICSOPTIONS_BACK1	"menu/art/back_1"
-#define GRAPHICSOPTIONS_ACCEPT0	"menu/art/accept_0"
-#define GRAPHICSOPTIONS_ACCEPT1	"menu/art/accept_1"
+#define GRAPHICSOPTIONS_FRAMEL	"menu/" MENU_ART_DIR "/frame2_l"
+#define GRAPHICSOPTIONS_FRAMER	"menu/" MENU_ART_DIR "/frame1_r"
+#define GRAPHICSOPTIONS_BACK0	"menu/" MENU_ART_DIR "/back_0"
+#define GRAPHICSOPTIONS_BACK1	"menu/" MENU_ART_DIR "/back_1"
+#define GRAPHICSOPTIONS_ACCEPT0	"menu/" MENU_ART_DIR "/accept_0"
+#define GRAPHICSOPTIONS_ACCEPT1	"menu/" MENU_ART_DIR "/accept_1"
 
 #define ID_BACK2		101
 #define ID_DRIVERINFO	102
@@ -250,6 +250,10 @@ GRAPHICS OPTIONS MENU
 #define ID_GAMMA		110
 #define ID_HIGHQUALITYSKY	111
 #define ID_SUPERSAMPLING	112
+// OpenArena graphics options
+#define ID_FLARES		113
+#define ID_DYNAMICLIGHTS	114
+#define ID_ANISO		115
 
 #define	NUM_REFRESHRATE	5
 #define NUM_SHADOWS 3
@@ -279,6 +283,9 @@ typedef struct {
 	menuslider_s	gamma;
 	menuradiobutton_s	highqualitysky;
 	menulist_s		supersampling;
+	menulist_s		flares;
+	menulist_s		dynamicLights;
+	menulist_s		aniso;
 
 	menubitmap_s	apply;
 	menubitmap_s	back;
@@ -296,6 +303,9 @@ typedef struct
 	float gamma;
 	int highqualitysky;
 	float supersampling;
+	int flares;
+	int dynamicLights;
+	int aniso;
 } InitialVideoOptions_s;
 
 static InitialVideoOptions_s	s_ivo;
@@ -318,6 +328,9 @@ static void GraphicsOptions_GetInitialVideo( void )
 	s_ivo.gamma       = s_graphicsoptions.gamma.curvalue;
 	s_ivo.highqualitysky = s_graphicsoptions.highqualitysky.curvalue;
 	s_ivo.supersampling = s_graphicsoptions.supersampling.curvalue;
+	s_ivo.flares      = s_graphicsoptions.flares.curvalue;
+	s_ivo.dynamicLights = s_graphicsoptions.dynamicLights.curvalue;
+	s_ivo.aniso       = s_graphicsoptions.aniso.curvalue;
 }
 
 /*
@@ -345,6 +358,18 @@ static void GraphicsOptions_UpdateMenuItems( void )
 	{
 		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
+	if ( s_ivo.flares != s_graphicsoptions.flares.curvalue )
+	{
+		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+	if ( s_ivo.dynamicLights != s_graphicsoptions.dynamicLights.curvalue )
+	{
+		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+	if ( s_ivo.aniso != s_graphicsoptions.aniso.curvalue )
+	{
+		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
 }
 
 /*
@@ -359,6 +384,18 @@ static void GraphicsOptions_ApplyChanges( void *unused, int notification )
 
 	trap_Cvar_SetValue( "r_picmip", 3 - s_graphicsoptions.tq.curvalue );
 	trap_Cvar_SetValue( "r_vertexLight", s_graphicsoptions.lighting.curvalue );
+	trap_Cvar_SetValue( "cg_autovertex", s_graphicsoptions.lighting.curvalue );
+	trap_Cvar_SetValue( "r_flares", s_graphicsoptions.flares.curvalue );
+	trap_Cvar_SetValue( "r_dynamicLight", s_graphicsoptions.dynamicLights.curvalue );
+
+	//r_ext_texture_filter_anisotropic is special
+	if(s_graphicsoptions.aniso.curvalue) {
+		trap_Cvar_SetValue( "r_ext_max_anisotropy", s_graphicsoptions.aniso.curvalue*2 );
+		trap_Cvar_SetValue( "r_ext_texture_filter_anisotropic", qtrue );
+	}
+	else {
+		trap_Cvar_SetValue( "r_ext_texture_filter_anisotropic", qfalse );
+	}
 
 	if ( s_graphicsoptions.geometry.curvalue == 2 )
 	{
@@ -631,6 +668,17 @@ static void GraphicsOptions_SetMenuItems( void )
 	s_graphicsoptions.railgun.curvalue	= trap_Cvar_VariableValue( "cg_oldRail" );
 	s_graphicsoptions.gamma.curvalue			= trap_Cvar_VariableValue( "r_gamma" );
 	s_graphicsoptions.highqualitysky.curvalue	= trap_Cvar_VariableValue( "r_fastsky" ) == 0;
+	s_graphicsoptions.flares.curvalue			= trap_Cvar_VariableValue( "r_flares" ) != 0;
+	s_graphicsoptions.dynamicLights.curvalue	= trap_Cvar_VariableValue( "r_dynamicLight" ) != 0;
+	if ( trap_Cvar_VariableValue( "r_ext_texture_filter_anisotropic" ) ) {
+		s_graphicsoptions.aniso.curvalue = trap_Cvar_VariableValue( "r_ext_max_anisotropy" ) / 2;
+		if ( s_graphicsoptions.aniso.curvalue > 4 ) {
+			s_graphicsoptions.aniso.curvalue = 4;
+		}
+	}
+	else {
+		s_graphicsoptions.aniso.curvalue = 0;
+	}
 }
 
 /*
@@ -678,6 +726,23 @@ void GraphicsOptions_MenuInit( void )
 	{
 		"Q2 Style",
 		"Q3 Style",
+		NULL
+	};
+
+	static const char *enabled_names[] =
+	{
+		"Off",
+		"On",
+		NULL
+	};
+
+	static const char *aniso_names[] =
+	{
+		"Off",
+		"2x",
+		"4x",
+		"6x",
+		"8x",
 		NULL
 	};
 
@@ -756,7 +821,7 @@ void GraphicsOptions_MenuInit( void )
 	s_graphicsoptions.network.style				= UI_RIGHT;
 	s_graphicsoptions.network.color				= color_red;
 
-	y = 254 - 6 * (BIGCHAR_HEIGHT + 2);
+	y = 254 - 8 * (BIGCHAR_HEIGHT + 2);
 
 	// references "vr_refreshrate"
 	s_graphicsoptions.refreshrate.generic.type		= MTYPE_SPINCONTROL;
@@ -867,6 +932,36 @@ void GraphicsOptions_MenuInit( void )
 	s_graphicsoptions.highqualitysky.generic.y			= y;
 	s_graphicsoptions.highqualitysky.generic.callback = GraphicsOptions_Event;
 	s_graphicsoptions.highqualitysky.generic.id       = ID_HIGHQUALITYSKY;
+	y += BIGCHAR_HEIGHT+2;
+
+	// references/modifies "r_flares" (OpenArena)
+	s_graphicsoptions.flares.generic.type		= MTYPE_SPINCONTROL;
+	s_graphicsoptions.flares.generic.name		= "Flares:";
+	s_graphicsoptions.flares.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_graphicsoptions.flares.generic.x			= 400;
+	s_graphicsoptions.flares.generic.y			= y;
+	s_graphicsoptions.flares.generic.id			= ID_FLARES;
+	s_graphicsoptions.flares.itemnames			= enabled_names;
+	y += BIGCHAR_HEIGHT+2;
+
+	// references/modifies "r_dynamicLight" (OpenArena)
+	s_graphicsoptions.dynamicLights.generic.type		= MTYPE_SPINCONTROL;
+	s_graphicsoptions.dynamicLights.generic.name		= "Dynamic Lights:";
+	s_graphicsoptions.dynamicLights.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_graphicsoptions.dynamicLights.generic.x			= 400;
+	s_graphicsoptions.dynamicLights.generic.y			= y;
+	s_graphicsoptions.dynamicLights.generic.id			= ID_DYNAMICLIGHTS;
+	s_graphicsoptions.dynamicLights.itemnames			= enabled_names;
+	y += BIGCHAR_HEIGHT+2;
+
+	// references/modifies "r_ext_texture_filter_anisotropic" (OpenArena)
+	s_graphicsoptions.aniso.generic.type		= MTYPE_SPINCONTROL;
+	s_graphicsoptions.aniso.generic.name		= "Anisotropy:";
+	s_graphicsoptions.aniso.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_graphicsoptions.aniso.generic.x			= 400;
+	s_graphicsoptions.aniso.generic.y			= y;
+	s_graphicsoptions.aniso.generic.id			= ID_ANISO;
+	s_graphicsoptions.aniso.itemnames			= aniso_names;
 	y += 2*BIGCHAR_HEIGHT;
 
 	s_graphicsoptions.driverinfo.generic.type     = MTYPE_PTEXT;
@@ -918,6 +1013,9 @@ void GraphicsOptions_MenuInit( void )
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.geometry );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.tq );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.highqualitysky );
+	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.flares );
+	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.dynamicLights );
+	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.aniso );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.driverinfo );
 
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.back );

@@ -65,7 +65,7 @@ CG_FreeMarkPoly
 ==================
 */
 void CG_FreeMarkPoly( markPoly_t *le ) {
-	if ( !le->prevMark || !le->nextMark ) {
+	if ( !le->prevMark ) {
 		CG_Error( "CG_FreeLocalEntity: not active" );
 	}
 
@@ -148,13 +148,14 @@ void CG_ImpactMark( qhandle_t markShader, const vec3_t origin, const vec3_t dir,
 		CG_Error( "CG_ImpactMark called with <= 0 radius" );
 	}
 
-	//if ( markTotal >= MAX_MARK_POLYS ) {
-	//	return;
-	//}
+	/* if ( markTotal >= MAX_MARK_POLYS ) {
+		return;
+	} */
 
 	// create the texture axis
 	VectorNormalize2( dir, axis[0] );
 	PerpendicularVector( axis[1], axis[0] );
+	
 	RotatePointAroundVector( axis[2], axis[0], axis[1], orientation );
 	CrossProduct( axis[0], axis[2], axis[1] );
 
@@ -291,3 +292,6 @@ void CG_AddMarks( void ) {
 		trap_R_AddPolyToScene( mp->markShader, mp->poly.numVerts, mp->verts );
 	}
 }
+
+
+// gutted to renderer

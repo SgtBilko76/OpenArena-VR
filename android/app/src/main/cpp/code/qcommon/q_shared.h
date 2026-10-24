@@ -27,19 +27,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // A user mod should never modify this file
 
 #ifdef STANDALONE
-  #define PRODUCT_NAME				"iofoo3"
-  #define BASEGAME					"foobar"
-  #define CLIENT_WINDOW_TITLE		"changeme"
-  #define CLIENT_WINDOW_MIN_TITLE	"changeme2"
-  #define HOMEPATH_NAME_UNIX		".foo"
-  #define HOMEPATH_NAME_WIN			"FooBar"
+  // OpenArena VR: same identity as OpenArena's own engine (github.com/OpenArena/engine), so the
+  // client finds and joins normal OpenArena servers (dpmaster lists them under Quake3Arena).
+  #define PRODUCT_NAME				"OpenArena"
+  #define BASEGAME					"baseoa"
+  #define CLIENT_WINDOW_TITLE		"OpenArena VR"
+  #define CLIENT_WINDOW_MIN_TITLE	"OA VR"
+  #define HOMEPATH_NAME_UNIX		".openarena"
+  #define HOMEPATH_NAME_WIN			"OpenArena"
   #define HOMEPATH_NAME_MACOSX		HOMEPATH_NAME_WIN
-//  #define STEAMPATH_NAME			"Foo Bar"
-//  #define STEAMPATH_APPID         ""
-  #define GAMENAME_FOR_MASTER		"foobar"	// must NOT contain whitespace
-  #define CINEMATICS_LOGO		"foologo.roq"
+  #define GAMENAME_FOR_MASTER		"Quake3Arena"	// must NOT contain whitespace; OA servers use it
   #define CINEMATICS_INTRO		"intro.roq"
-//  #define LEGACY_PROTOCOL	// You probably don't need this for your standalone game
+  #define LEGACY_PROTOCOL	// OpenArena 0.8.8 servers speak protocol 71 and accept 68
 #else
   #define PRODUCT_NAME				"ioq3"
   #define BASEGAME					"baseq3"
@@ -834,6 +833,15 @@ qboolean Q_isintegral( float f );
 int		Q_stricmp (const char *s1, const char *s2);
 int		Q_strncmp (const char *s1, const char *s2, int n);
 int		Q_stricmpn (const char *s1, const char *s2, int n);
+// OpenArena game-code helpers (from OpenArena's q_shared.h)
+#define Q_strequal(s1,s2) (Q_stricmp(s1,s2)==0)
+#define Q_strnequal(s1, s2, n) (Q_strncmp(s1, s2, n)==0)
+#define Q_strequaln(s1, s2, n) (Q_stricmpn(s1, s2, n)==0)
+#define strequals(s1, s2) (strcmp(s1, s2)==0)
+#ifndef Q_snprintf
+#define Q_snprintf snprintf
+#endif
+void	Q_StrToLower(char *io_string);
 char	*Q_strlwr( char *s1 );
 char	*Q_strupr( char *s1 );
 const char	*Q_stristr( const char *s, const char *find);

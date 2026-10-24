@@ -34,21 +34,21 @@ SETUP MENU
 
 #define SETUP_MENU_VERTICAL_SPACING		34
 
-#define ART_BACK0		"menu/art/back_0"
-#define ART_BACK1		"menu/art/back_1"	
-#define ART_FRAMEL		"menu/art/frame2_l"
-#define ART_FRAMER		"menu/art/frame1_r"
+#define ART_BACK0		"menu/" MENU_ART_DIR "/back_0"
+#define ART_BACK1		"menu/" MENU_ART_DIR "/back_1"
+#define ART_FRAMEL		"menu/" MENU_ART_DIR "/frame2_l"
+#define ART_FRAMER		"menu/" MENU_ART_DIR "/frame1_r"
 
+/*#define ID_LOAD					14
+#define ID_SAVE					15*/
 #define ID_CUSTOMIZEPLAYER		10
 #define ID_CUSTOMIZECONTROLS	11
 #define ID_COMFORT              12
 #define ID_GAME					13
-#define ID_SYSTEMCONFIG			14
-#define ID_CDKEY				15
-#define ID_LOAD					16
-#define ID_SAVE					17
-#define ID_DEFAULTS				18
-#define ID_BACK					19
+#define ID_HUD					14
+#define ID_SYSTEMCONFIG			15
+#define ID_DEFAULTS				16
+#define ID_BACK					17
 
 
 typedef struct {
@@ -61,10 +61,10 @@ typedef struct {
 	menutext_s		setupcontrols;
 	menutext_s      comfort;
 	menutext_s		game;
+	menutext_s		hud;
 	menutext_s		setupsystem;
-//	menutext_s		cdkey;
-//	menutext_s		load;
-//	menutext_s		save;
+/*	menutext_s		load;
+	menutext_s		save;*/
 	menutext_s		defaults;
 	menubitmap_s	back;
 } setupMenuInfo_t;
@@ -125,21 +125,21 @@ static void UI_SetupMenu_Event( void *ptr, int event ) {
 		UI_PreferencesMenu();
 		break;
 
+	case ID_HUD:
+		UI_HUDOptionsMenu();
+		break;
+
 	case ID_SYSTEMCONFIG:
 		UI_GraphicsOptionsMenu();
 		break;
 
-//	case ID_CDKEY:
-//		UI_CDKeyMenu();
-//		break;
+/*	case ID_LOAD:
+		UI_LoadConfigMenu();
+		break;
 
-//	case ID_LOAD:
-//		UI_LoadConfigMenu();
-//		break;
-
-//	case ID_SAVE:
-//		UI_SaveConfigMenu();
-//		break;
+	case ID_SAVE:
+		UI_SaveConfigMenu();
+		break;*/
 
 	case ID_DEFAULTS:
 		UI_ConfirmMenu( "SET TO DEFAULTS?", Setup_ResetDefaults_Draw, Setup_ResetDefaults_Action );
@@ -206,7 +206,7 @@ static void UI_SetupMenu_Init( void ) {
 	setupMenuInfo.setupcontrols.generic.x			= 320;
 	setupMenuInfo.setupcontrols.generic.y			= y;
 	setupMenuInfo.setupcontrols.generic.id			= ID_CUSTOMIZECONTROLS;
-	setupMenuInfo.setupcontrols.generic.callback	= UI_SetupMenu_Event;
+	setupMenuInfo.setupcontrols.generic.callback	= UI_SetupMenu_Event; 
 	setupMenuInfo.setupcontrols.string				= "CONTROLS";
 	setupMenuInfo.setupcontrols.color				= color_red;
 	setupMenuInfo.setupcontrols.style				= UI_CENTER;
@@ -228,10 +228,21 @@ static void UI_SetupMenu_Init( void ) {
 	setupMenuInfo.game.generic.x					= 320;
 	setupMenuInfo.game.generic.y					= y;
 	setupMenuInfo.game.generic.id					= ID_GAME;
-	setupMenuInfo.game.generic.callback				= UI_SetupMenu_Event;
+	setupMenuInfo.game.generic.callback				= UI_SetupMenu_Event; 
 	setupMenuInfo.game.string						= "GAME OPTIONS";
 	setupMenuInfo.game.color						= color_red;
 	setupMenuInfo.game.style						= UI_CENTER;
+
+	y += SETUP_MENU_VERTICAL_SPACING;
+	setupMenuInfo.hud.generic.type					= MTYPE_PTEXT;
+	setupMenuInfo.hud.generic.flags					= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
+	setupMenuInfo.hud.generic.x						= 320;
+	setupMenuInfo.hud.generic.y						= y;
+	setupMenuInfo.hud.generic.id					= ID_HUD;
+	setupMenuInfo.hud.generic.callback				= UI_SetupMenu_Event; 
+	setupMenuInfo.hud.string						= "H.U.D.";
+	setupMenuInfo.hud.color							= color_red;
+	setupMenuInfo.hud.style							= UI_CENTER;
 
 	y += SETUP_MENU_VERTICAL_SPACING;
 	setupMenuInfo.setupsystem.generic.type			= MTYPE_PTEXT;
@@ -244,31 +255,8 @@ static void UI_SetupMenu_Init( void ) {
 	setupMenuInfo.setupsystem.color					= color_red;
 	setupMenuInfo.setupsystem.style					= UI_CENTER;
 
-//	y += SETUP_MENU_VERTICAL_SPACING;
-//	setupMenuInfo.vr.generic.type					= MTYPE_PTEXT;
-//	setupMenuInfo.vr.generic.flags				    = QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
-//	setupMenuInfo.vr.generic.x					    = 320;
-//	setupMenuInfo.vr.generic.y					    = y;
-//	setupMenuInfo.vr.generic.id					    = ID_VR;
-//	setupMenuInfo.vr.generic.callback			    = UI_SetupMenu_Event;
-//	setupMenuInfo.vr.string						    = "VR OPTIONS";
-//	setupMenuInfo.vr.color						    = color_red;
-//	setupMenuInfo.vr.style						    = UI_CENTER;
-
-//	y += SETUP_MENU_VERTICAL_SPACING;
-//	setupMenuInfo.cdkey.generic.type				= MTYPE_PTEXT;
-//	setupMenuInfo.cdkey.generic.flags				= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
-//	setupMenuInfo.cdkey.generic.x					= 320;
-//	setupMenuInfo.cdkey.generic.y					= y;
-//	setupMenuInfo.cdkey.generic.id					= ID_CDKEY;
-//	setupMenuInfo.cdkey.generic.callback			= UI_SetupMenu_Event;
-//	setupMenuInfo.cdkey.string						= "CD Key";
-//	setupMenuInfo.cdkey.color						= color_red;
-//	setupMenuInfo.cdkey.style						= UI_CENTER;
-
 	if( !trap_Cvar_VariableValue( "cl_paused" ) ) {
-#if 0
-		y += SETUP_MENU_VERTICAL_SPACING;
+/*		y += SETUP_MENU_VERTICAL_SPACING;
 		setupMenuInfo.load.generic.type					= MTYPE_PTEXT;
 		setupMenuInfo.load.generic.flags				= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
 		setupMenuInfo.load.generic.x					= 320;
@@ -288,8 +276,7 @@ static void UI_SetupMenu_Init( void ) {
 		setupMenuInfo.save.generic.callback				= UI_SetupMenu_Event; 
 		setupMenuInfo.save.string						= "SAVE";
 		setupMenuInfo.save.color						= color_red;
-		setupMenuInfo.save.style						= UI_CENTER;
-#endif
+		setupMenuInfo.save.style						= UI_CENTER;*/
 
 		y += SETUP_MENU_VERTICAL_SPACING;
 		setupMenuInfo.defaults.generic.type				= MTYPE_PTEXT;
@@ -321,11 +308,10 @@ static void UI_SetupMenu_Init( void ) {
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupcontrols );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.comfort );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.game );
+	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.hud );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupsystem );
-//	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.vr );
-//	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.cdkey );
-//	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.load );
-//	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.save );
+/*	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.load );
+	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.save );*/
 	if( !trap_Cvar_VariableValue( "cl_paused" ) ) {
 		Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.defaults );
 	}

@@ -102,7 +102,7 @@ void Use_Target_Delay( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 }
 
 void SP_target_delay( gentity_t *ent ) {
-	// check delay for backwards compatibility
+	// check delay for backwards compatability
 	if ( !G_SpawnFloat( "delay", "0", &ent->wait ) ) {
 		G_SpawnFloat( "wait", "1", &ent->wait );
 	}
@@ -206,7 +206,7 @@ void SP_target_speaker( gentity_t *ent ) {
 		G_Error( "target_speaker without a noise key at %s", vtos( ent->s.origin ) );
 	}
 
-	// force all client relative sounds to be "activator" speakers that
+	// force all client reletive sounds to be "activator" speakers that
 	// play on the entity that activates it
 	if ( s[0] == '*' ) {
 		ent->spawnflags |= 8;
@@ -360,8 +360,9 @@ void target_teleporter_use( gentity_t *self, gentity_t *other, gentity_t *activa
 The activator will be teleported away.
 */
 void SP_target_teleporter( gentity_t *self ) {
-	if (!self->targetname)
+	if (!self->targetname) {
 		G_Printf("untargeted %s at %s\n", self->classname, vtos(self->s.origin));
+	}
 
 	self->use = target_teleporter_use;
 }
@@ -424,6 +425,7 @@ static void target_location_linkup(gentity_t *ent)
 {
 	int i;
 	int n;
+        //static char *gametypeNames[] = {"ffa", "tournament", "single", "team", "ctf", "oneflag", "obelisk", "harvester", "elimination", "ctf", "lms", "dd", "dom"};
 
 	if (level.locationLinked) 
 		return;
@@ -435,9 +437,9 @@ static void target_location_linkup(gentity_t *ent)
 	trap_SetConfigstring( CS_LOCATIONS, "unknown" );
 
 	for (i = 0, ent = g_entities, n = 1;
-			i < level.num_entities;
-			i++, ent++) {
-		if (ent->classname && !Q_stricmp(ent->classname, "target_location")) {
+		i < level.num_entities;
+		i++, ent++) {
+		if (ent->classname && Q_strequal(ent->classname, "target_location") ) {
 			// lets overload some variables!
 			ent->health = n; // use for location marking
 			trap_SetConfigstring( CS_LOCATIONS + n, ent->message );

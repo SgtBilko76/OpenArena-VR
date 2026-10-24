@@ -12,18 +12,18 @@ def jniStageDir = file("${buildDir}/jniStage")
 
 // A Unix shell is needed for the Makefile, which uses $(shell ...) in many places.
 def gitBash = ['C:/Program Files/Git/bin/bash.exe', '/bin/bash', '/usr/bin/bash']
-        .collect { file(it) }.find { it.exists() }
+        .collect { new File(it) }.find { it.exists() }
 
 android {
 	namespace 'com.drbeef.ioq3quest'
 	compileSdk 34
-	ndkVersion "21.1.6352462"
+	ndkVersion "25.1.8937393"
 	defaultConfig {
-		applicationId = 'com.drbeef.ioq3quest'
+		applicationId = 'com.bilko.openarenavr'
 		minSdkVersion 25
 		targetSdkVersion 34
-		versionCode 59
-		versionName "1.2.0"
+		versionCode 1
+		versionName "0.1.0"
 		externalNativeBuild {
 			cmake {
 				arguments '-DANDROID_STL=c++_static', "-DJNI_STAGE_DIR=${jniStageDir}"
@@ -64,11 +64,20 @@ android {
 	externalNativeBuild {
 		cmake {
 			path 'src/main/cpp/CMakeLists.txt'
-			version '3.10.2'
+			version '3.22.1'
 		}
+	}
+	// OpenArena's paks are stored uncompressed: they are zips already, and AssetManager.openFd()
+	// (used for the size check on first start) only works on stored assets.
+	androidResources {
+		noCompress 'pk3'
 	}
 	sourceSets {
 		main {
+			// The OpenArena 0.8.8 baseoa paks (tools/openarena/stage_data.sh) as assets/baseoa/*.pk3
+			if (project.hasProperty('gameData')) {
+				assets.srcDirs += file(project.property('gameData'))
+			}
 			// Assigned, not appended: the default src/main/jniLibs must not also be picked up, or
 			// the old copies left there by the previous build flow collide with the staged ones.
 			jniLibs.srcDirs = [jniStageDir]
@@ -113,6 +122,8 @@ tasks.register('generateVrVersionHeader') {
 // on old shaders. Built with Gradle's Zip task because `zip` is not always on PATH on Windows.
 tasks.register('packPakQ3Q', Zip) {
 	from file('src/main/pakQ3Q')
+	// OpenArena: VR shaders, shader scripts and gfx; Q3Q's ui/*.menu files are for Team Arena
+	exclude 'ui/**'
 	archiveFileName = 'pakQ3Q.pk3'
 	destinationDirectory = file('src/main/assets')
 }
@@ -146,7 +157,7 @@ android.applicationVariants.all { variant ->
 			include 'libioquake3_opengl2.so', 'libSDL2.so', 'libopenxr_loader.so'
 		}
 		// The game modules ship one copy per mod, renamed so both can be loaded.
-		['baseq3', 'missionpack'].each { mod ->
+		['baseoa'].each { mod ->
 			['cgame', 'qagame', 'ui'].each { module ->
 				from(new File(makeOutDir, mod)) {
 					include "${module}aarch64.so"

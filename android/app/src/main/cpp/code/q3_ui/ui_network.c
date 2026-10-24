@@ -31,10 +31,10 @@ NETWORK OPTIONS MENU
 #include "ui_local.h"
 
 
-#define ART_FRAMEL			"menu/art/frame2_l"
-#define ART_FRAMER			"menu/art/frame1_r"
-#define ART_BACK0			"menu/art/back_0"
-#define ART_BACK1			"menu/art/back_1"
+#define ART_FRAMEL			"menu/" MENU_ART_DIR "/frame2_l"
+#define ART_FRAMER			"menu/" MENU_ART_DIR "/frame1_r"
+#define ART_BACK0			"menu/" MENU_ART_DIR "/back_0"
+#define ART_BACK1			"menu/" MENU_ART_DIR "/back_1"
 
 #define ID_GRAPHICS			10
 #define ID_DISPLAY			11
@@ -42,11 +42,13 @@ NETWORK OPTIONS MENU
 #define ID_NETWORK			13
 #define ID_RATE				14
 #define ID_ALLOWDOWNLOAD	15
-#define ID_SENDROLL			16
-#define ID_BACK				17
+#define ID_DELAG			16
+#define ID_LAGOMETER		17
+#define ID_SENDROLL			18
+#define ID_BACK				19
 
 
-static const char *rate_items[] = {
+const char *rate_items[] = {
 	"<= 28.8K",
 	"33.6K",
 	"56K",
@@ -69,6 +71,8 @@ typedef struct {
 
 	menulist_s		rate;
 	menuradiobutton_s	allowdownload;
+	menuradiobutton_s	delag;
+	menuradiobutton_s	lagometer;
 	menuradiobutton_s	sendroll;
 
 	menubitmap_s	back;
@@ -129,9 +133,17 @@ static void UI_NetworkOptionsMenu_Event( void* ptr, int event ) {
 		trap_Cvar_SetValue( "sv_allowDownload", networkOptionsInfo.allowdownload.curvalue );
 		break;
 
-    case ID_SENDROLL:
-        trap_Cvar_SetValue( "vr_sendRollToServer", networkOptionsInfo.sendroll.curvalue);
-        break;
+	case ID_DELAG:
+		trap_Cvar_SetValue( "cl_delag", networkOptionsInfo.delag.curvalue );
+		break;
+
+	case ID_LAGOMETER:
+		trap_Cvar_SetValue( "cg_lagometer", networkOptionsInfo.lagometer.curvalue );
+		break;
+
+	case ID_SENDROLL:
+		trap_Cvar_SetValue( "vr_sendRollToServer", networkOptionsInfo.sendroll.curvalue );
+		break;
 
 	case ID_BACK:
 		UI_PopMenu();
@@ -143,10 +155,12 @@ static void UI_NetworkOptionsMenu_Event( void* ptr, int event ) {
 /*
 ===============
 UI_NetworkOptionsMenu_Init
+
+Every option name must have 22 characters or less.
 ===============
 */
 static void UI_NetworkOptionsMenu_Init( void ) {
-	int		y;
+	//int		y;
 	int		rate;
 
 	memset( &networkOptionsInfo, 0, sizeof(networkOptionsInfo) );
@@ -219,33 +233,50 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	networkOptionsInfo.network.style				= UI_RIGHT;
 	networkOptionsInfo.network.color				= color_red;
 
-	y = 256 - 2 * (BIGCHAR_HEIGHT + 2);
+	//y = 240 - 1 * (BIGCHAR_HEIGHT+2);
 	networkOptionsInfo.rate.generic.type		= MTYPE_SPINCONTROL;
-	networkOptionsInfo.rate.generic.name		= "Data Rate:";
+	networkOptionsInfo.rate.generic.name		= "Network Speed:";
 	networkOptionsInfo.rate.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
 	networkOptionsInfo.rate.generic.callback	= UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.rate.generic.id			= ID_RATE;
 	networkOptionsInfo.rate.generic.x			= 400;
-	networkOptionsInfo.rate.generic.y			= y;
+	networkOptionsInfo.rate.generic.y			= 240 - 1.5 * (BIGCHAR_HEIGHT + 2);
 	networkOptionsInfo.rate.itemnames			= rate_items;
 
-	y += BIGCHAR_HEIGHT+2;
+	//y += BIGCHAR_HEIGHT+2;
 	networkOptionsInfo.allowdownload.generic.type     = MTYPE_RADIOBUTTON;
-	networkOptionsInfo.allowdownload.generic.name	   = "Auto-Download:";
+	networkOptionsInfo.allowdownload.generic.name	   = "Download From Servers:";
 	networkOptionsInfo.allowdownload.generic.flags	   = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
 	networkOptionsInfo.allowdownload.generic.callback = UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.allowdownload.generic.id       = ID_ALLOWDOWNLOAD;
 	networkOptionsInfo.allowdownload.generic.x	       = 400;
-	networkOptionsInfo.allowdownload.generic.y	       = y;
+	networkOptionsInfo.allowdownload.generic.y	       = 240 - 0.5 * (BIGCHAR_HEIGHT + 2);
 
-	y += BIGCHAR_HEIGHT+2;
+	//y += BIGCHAR_HEIGHT+2;
+	networkOptionsInfo.delag.generic.type     = MTYPE_RADIOBUTTON;
+	networkOptionsInfo.delag.generic.name	   = "Delag Hitscan Latency:";
+	networkOptionsInfo.delag.generic.flags	   = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	networkOptionsInfo.delag.generic.callback = UI_NetworkOptionsMenu_Event;
+	networkOptionsInfo.delag.generic.id       = ID_DELAG;
+	networkOptionsInfo.delag.generic.x	       = 400;
+	networkOptionsInfo.delag.generic.y	       = 240 + 0.5 * (BIGCHAR_HEIGHT + 2);
+
+	//y += BIGCHAR_HEIGHT+2;
+	networkOptionsInfo.lagometer.generic.type     = MTYPE_RADIOBUTTON;
+	networkOptionsInfo.lagometer.generic.name	   = "Lagometer:";
+	networkOptionsInfo.lagometer.generic.flags	   = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	networkOptionsInfo.lagometer.generic.callback = UI_NetworkOptionsMenu_Event;
+	networkOptionsInfo.lagometer.generic.id       = ID_LAGOMETER;
+	networkOptionsInfo.lagometer.generic.x	       = 400;
+	networkOptionsInfo.lagometer.generic.y	       = 240 + 1.5 * (BIGCHAR_HEIGHT + 2);
+
 	networkOptionsInfo.sendroll.generic.type        = MTYPE_RADIOBUTTON;
 	networkOptionsInfo.sendroll.generic.name	      = "Send Roll Angle:";
 	networkOptionsInfo.sendroll.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
 	networkOptionsInfo.sendroll.generic.callback    = UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.sendroll.generic.id          = ID_SENDROLL;
 	networkOptionsInfo.sendroll.generic.x	          = 400;
-	networkOptionsInfo.sendroll.generic.y	          = y;
+	networkOptionsInfo.sendroll.generic.y	          = 240 + 2.5 * (BIGCHAR_HEIGHT + 2);
 
 	networkOptionsInfo.back.generic.type		= MTYPE_BITMAP;
 	networkOptionsInfo.back.generic.name		= ART_BACK0;
@@ -267,6 +298,8 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.network );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.rate );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.allowdownload );
+	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.delag );
+	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.lagometer );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.sendroll );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.back );
 
@@ -286,8 +319,11 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	else {
 		networkOptionsInfo.rate.curvalue = 4;
 	}
-	networkOptionsInfo.allowdownload.curvalue	= trap_Cvar_VariableValue( "cl_allowDownload" ) != 0;
-	networkOptionsInfo.sendroll.curvalue		= trap_Cvar_VariableValue( "vr_sendRollToServer" ) != 0;
+
+	networkOptionsInfo.allowdownload.curvalue = trap_Cvar_VariableValue( "cl_allowDownload" ) != 0;
+	networkOptionsInfo.delag.curvalue = trap_Cvar_VariableValue( "cl_delag" ) != 0;
+	networkOptionsInfo.lagometer.curvalue = trap_Cvar_VariableValue( "cg_lagometer" ) != 0;
+	networkOptionsInfo.sendroll.curvalue = trap_Cvar_VariableValue( "vr_sendRollToServer" ) != 0;
 }
 
 

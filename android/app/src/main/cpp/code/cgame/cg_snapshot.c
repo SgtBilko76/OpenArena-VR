@@ -55,7 +55,9 @@ CG_TransitionEntity
 cent->nextState is moved to cent->currentState and events are fired
 ===============
 */
-static void CG_TransitionEntity( centity_t *cent ) {
+//unlagged - early transitioning
+// used to be static, now needed to transition entities from within cg_ents.c
+void CG_TransitionEntity( centity_t *cent ) {
 	cent->currentState = cent->nextState;
 	cent->currentValid = qtrue;
 
@@ -76,8 +78,11 @@ static void CG_TransitionEntity( centity_t *cent ) {
 ==================
 CG_SetInitialSnapshot
 
-This will only happen on the very first snapshot.
-All other times will use CG_TransitionSnapshot instead.
+This will only happen on the very first snapshot, or
+on tourney restarts.  All other times will use 
+CG_TransitionSnapshot instead.
+
+FIXME: Also called by map_restart?
 ==================
 */
 void CG_SetInitialSnapshot( snapshot_t *snap ) {
@@ -137,9 +142,10 @@ static void CG_TransitionSnapshot( void ) {
 	// execute any server string commands before transitioning entities
 	CG_ExecuteNewServerCommands( cg.nextSnap->serverCommandSequence );
 
-	// if we had a map_restart, set everything with initial
+ 	// if we had a map_restart, set everthing with initial
 	if ( cg.mapRestart ) {
-	}
+		//Sago: Something is wrong here... missing initial?
+ 	}
 
 	// clear the currentValid flag for all entities in the existing snapshot
 	for ( i = 0 ; i < cg.snap->numEntities ; i++ ) {
@@ -229,12 +235,12 @@ static void CG_SetNextSnap( snapshot_t *snap ) {
 	}
 
 	// if changing follow mode, don't interpolate
-	if ( cg.nextSnap->ps.clientNum != cg.snap->ps.clientNum ) {
+	if ( cg.snap && cg.nextSnap->ps.clientNum != cg.snap->ps.clientNum ) {
 		cg.nextFrameTeleport = qtrue;
 	}
 
 	// if changing server restarts, don't interpolate
-	if ( ( cg.nextSnap->snapFlags ^ cg.snap->snapFlags ) & SNAPFLAG_SERVERCOUNT ) {
+	if ( cg.snap && ( ( cg.nextSnap->snapFlags ^ cg.snap->snapFlags ) & SNAPFLAG_SERVERCOUNT ) ) {
 		cg.nextFrameTeleport = qtrue;
 	}
 
@@ -258,7 +264,7 @@ static snapshot_t *CG_ReadNextSnapshot( void ) {
 	snapshot_t	*dest;
 
 	if ( cg.latestSnapshotNum > cgs.processedSnapshotNum + 1000 ) {
-		CG_Printf( "WARNING: CG_ReadNextSnapshot: way out of range, %i > %i\n", 
+		CG_Printf( "WARNING: CG_ReadNextSnapshot: way out of range, %i > %i", 
 			cg.latestSnapshotNum, cgs.processedSnapshotNum );
 	}
 

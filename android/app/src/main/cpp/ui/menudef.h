@@ -15,7 +15,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Quake III Arena source code; if not, write to the Free Software
+along with Foobar; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
@@ -47,6 +47,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ITEM_TEXTSTYLE_OUTLINESHADOWED 5  // drop shadow ( need a color for this )
 #define ITEM_TEXTSTYLE_SHADOWEDMORE 6         // drop shadow ( need a color for this )
                           
+// rfactory change
+// Changed RD
+#define ITEM_TEXTSTYLE_NEON 7
+// end changed RD
+
 #define WINDOW_BORDER_NONE 0              // no border
 #define WINDOW_BORDER_FULL 1              // full border based on border color ( single pixel )
 #define WINDOW_BORDER_HORZ 2              // horizontal borders only
@@ -87,6 +92,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define FEEDER_SERVERSTATUS					0x0d			// server status
 #define FEEDER_FINDPLAYER					0x0e			// find player
 #define FEEDER_CINEMATICS					0x0f			// cinematics
+#define FEEDER_Q3HEADS_FULL	 				0x10			// model heads 
+
+// rfactory change
+// Changed RD
+#define FEEDER_SAVE							0x10			// save games
+// leilei - there is no need for game saving code by the way. Save games are blanked out.
+
+// Bind Primary or Alternate
+#define BIND_BOTH							0x00
+#define BIND_PRIMARY						0x01
+#define BIND_ALTERNATE						0x02
+// end changed RD
+
 
 // display flags
 #define CG_SHOW_BLUE_TEAM_HAS_REDFLAG     0x00000001
@@ -109,6 +127,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_SHOW_OTHERTEAMHASFLAG          0x00020000
 #define CG_SHOW_YOURTEAMHASENEMYFLAG      0x00040000
 #define CG_SHOW_ANYNONTEAMGAME            0x00080000
+#define CG_SHOW_FREEFORALL                0x00100000
+#define CG_SHOW_TEAMDEATHMATCH            0x00200000
+#define CG_SHOW_ELIMINATION               0x00400000
+#define CG_SHOW_CTFELIMINATION            0x00800000
+#define CG_SHOW_LASTMANSTANDING           0x01000000
+#define CG_SHOW_DOUBLEDOMINATION          0x02000000
+#define CG_SHOW_DOMINATION                0x04000000
+#define CG_SHOW_POSSESSION                0x08000000
 #define CG_SHOW_2DONLY										0x10000000
 
 
@@ -125,6 +151,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_SHOW_NETANYNONTEAMGAME	 				0x00000400
 #define UI_SHOW_NETANYTEAMGAME		 				0x00000800
 #define UI_SHOW_NOTFAVORITESERVERS				0x00001000
+/* Neon_Knight: More ownerdraw checks. */
+#define UI_SHOW_ANYTEAMOBJECTIVEGAME			0x00010000
+#define UI_SHOW_ANYNONTEAMOBJECTIVEGAME			0x00020000
+#define UI_SHOW_NETANYTEAMOBJECTIVEGAME			0x00040000
+#define UI_SHOW_NETANYNONTEAMOBJECTIVEGAME			0x00080000
+#define UI_SHOW_ANYROUNDGAME			0x00100000
+#define UI_SHOW_ANYNONROUNDGAME			0x00200000
+#define UI_SHOW_NETANYROUNDGAME			0x00400000
+#define UI_SHOW_NETANYNONROUNDGAME			0x00800000
+#define UI_SHOW_ANYTEAMROUNDGAME			0x01000000
+#define UI_SHOW_ANYNONTEAMROUNDGAME			0x02000000
+#define UI_SHOW_NETANYTEAMROUNDGAME			0x04000000
+#define UI_SHOW_NETANYNONTEAMROUNDGAME			0x08000000
+
+// rfactory changes
+// Changed RD
+#define UI_BIND2CLICK	0x01000000
+// end changed RD
 
 
 
@@ -210,6 +254,38 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_2NDPLACE 68
 #define CG_CAPTURES 69
 
+// rfactory change
+// HUD extensions
+#define CG_LOAD_LEVELSHOT         75
+#define CG_LOAD_MEDIA             76
+#define CG_LOAD_MEDIA_LABEL       77
+#define CG_LOAD_LEVELNAME         78
+#define CG_LOAD_MOTD              79
+#define CG_LOAD_HOSTNAME          80
+#define CG_LOAD_SOUND             81
+#define CG_LOAD_SOUND_LABEL       82
+#define CG_LOAD_GRAPHIC           83
+#define CG_LOAD_GRAPHIC_LABEL     84
+#define CG_LOAD_GAMETYPE          85	// leilei - gametype was missing. this is important.
+#define CG_LOAD_FRAGLIMIT         86	// leilei 
+#define CG_LOAD_TIMELIMIT         87	// leilei 
+#define CG_LOAD_CAPTURELIMIT      88	// leilei 
+// end HUD extensions
+
+// Hud groups
+#define CG_PLAYER_CROSSHAIRNAMES  90
+#define CG_FPS                    91
+#define CG_FPS_FIXED              92
+#define CG_TIMER                  93
+#define CG_TIMER_MINS             94
+#define CG_TIMER_SECS             95
+#define CG_SNAPSHOT               96
+#define CG_LAGOMETER              97
+#define CG_CONSOLE                98
+#define CG_WEAPONSELECT           99
+#define CG_CENTERPRINT           100
+// end Hud groups
+
 
 
 
@@ -271,6 +347,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_PREVIEWCINEMATIC 254
 #define UI_STARTMAPCINEMATIC 255
 #define UI_MAPS_SELECTION 256
+#define UI_PLAYERMODEL2 257
+#define UI_OPPONENTMODEL2 258
+#define UI_MENUMAPNAME 260		// leilei - sp ladder menus addition
+#define UI_PLAYERPORTRAIT 261
+#define UI_PLAYERMODEL_OC 262
 
 #define VOICECHAT_GETFLAG			"getflag"				// command someone to get the flag
 #define VOICECHAT_OFFENSE			"offense"				// command someone to go on offense
@@ -306,3 +387,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define VOICECHAT_DEATHINSULT		"death_insult"			// you just killed me
 #define VOICECHAT_KILLGAUNTLET		"kill_gauntlet"			// I just killed you with the gauntlet
 #define VOICECHAT_PRAISE			"praise"				// you did something good
+#define VOICECHAT_HOLDPOINTA		"holdpointa"			// hold DD point A
+#define VOICECHAT_HOLDPOINTB		"holdpointb"			// hold DD point B
+#define VOICECHAT_HOLDDOMPOINT		"holddompoint"			// hold a DOM point

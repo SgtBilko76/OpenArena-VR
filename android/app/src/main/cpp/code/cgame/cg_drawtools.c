@@ -52,15 +52,15 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
     if ( hudDrawStatus == 1 && cg.drawingHUD)
     {
         return;
-    }
+	}
 
    if (!cg.drawingHUD)
 	{
-		*x *= cgs.screenXScale;
-		*y *= cgs.screenYScale;
-		*w *= cgs.screenXScale;
-		*h *= cgs.screenYScale;
-	}
+		*x = *x * cgs.screenXScale + cgs.screenXBias;	// leilei - widescreen adjust
+	*y *= cgs.screenYScale;
+	*w *= cgs.screenXScale;
+	*h *= cgs.screenYScale;
+}
 	else  // scale to clearly visible portion of VR screen
 	{
 		float screenXScale = cgs.screenXScale / 2.8f;
@@ -125,7 +125,7 @@ void CG_DrawTopBottom(float x, float y, float w, float h, float size) {
 }
 /*
 ================
-UI_DrawRect
+CG_DrawRect
 
 Coordinates are 640*480 virtual values
 =================
@@ -133,8 +133,8 @@ Coordinates are 640*480 virtual values
 void CG_DrawRect( float x, float y, float width, float height, float size, const float *color ) {
 	trap_R_SetColor( color );
 
-  CG_DrawTopBottom(x, y, width, height, size);
-  CG_DrawSides(x, y + size, width, height - size * 2, size);
+	CG_DrawTopBottom(x, y, width, height, size);
+	CG_DrawSides(x, y + size, width, height - size * 2, size);
 
 	trap_R_SetColor( NULL );
 }
@@ -474,6 +474,10 @@ void CG_ColorForHealth( vec4_t hcolor ) {
 }
 
 
+
+
+// bk001205 - code below duplicated in q3_ui/ui-atoms.c
+// bk001205 - FIXME: does this belong in ui_shared.c?
 /*
 =================
 UI_DrawProportionalString2
@@ -582,9 +586,9 @@ static int	propMap[128][3] = {
 {215, 34, 18},	// X
 {234, 34, 18},	// Y
 {5, 64, 14},	// Z
-{153, 152, 13},	// {
+{153, 152, 13},	/* { */
 {11, 181, 5},	// |
-{180, 152, 13},	// }
+{180, 152, 13},	/* } */
 {79, 93, 17},	// ~
 {0, 0, -1}		// DEL
 };
@@ -633,7 +637,7 @@ UI_DrawBannerString
 static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 {
 	const char* s;
-	unsigned char	ch;
+	unsigned char	ch; // bk001204 : array subscript
 	float	ax;
 	float	ay;
 	float	aw;
@@ -663,7 +667,7 @@ static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 			fwidth = (float)propMapB[ch][2] / 256.0f;
 			fheight = (float)PROPB_HEIGHT / 256.0f;
 			aw = (float)propMapB[ch][2] * cgs.screenXScale;
-			ah = (float)PROPB_HEIGHT * cgs.screenYScale;
+			ah = (float)PROPB_HEIGHT * cgs.screenXScale;
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, cgs.media.charsetPropB );
 			ax += (aw + (float)PROPB_GAP_WIDTH * cgs.screenXScale);
 		}
@@ -743,7 +747,7 @@ int UI_ProportionalStringWidth( const char* str ) {
 static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t color, float sizeScale, qhandle_t charset )
 {
 	const char* s;
-	unsigned char	ch;
+	unsigned char	ch; // bk001204 - unsigned
 	float	ax;
 	float	ay;
 	float	aw;
@@ -757,7 +761,7 @@ static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t co
 	trap_R_SetColor( color );
 	
 	ax = x * cgs.screenXScale + cgs.screenXBias;
-	ay = y * cgs.screenYScale;
+	ay = y * cgs.screenXScale;
 
 	s = str;
 	while ( *s )
@@ -771,7 +775,7 @@ static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t co
 			fwidth = (float)propMap[ch][2] / 256.0f;
 			fheight = (float)PROP_HEIGHT / 256.0f;
 			aw = (float)propMap[ch][2] * cgs.screenXScale * sizeScale;
-			ah = (float)PROP_HEIGHT * cgs.screenYScale * sizeScale;
+			ah = (float)PROP_HEIGHT * cgs.screenXScale * sizeScale;
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, charset );
 		} else {
 			aw = 0;
