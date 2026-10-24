@@ -109,3 +109,17 @@ edit('game/g_main.c', '''	MapInfoPrint(&mapinfo);
 		G_LoadArenas();
 	}
 	if ( g_gametype.integer == GT_SINGLE_PLAYER || g_autoGameLimits.integer) {''')
+
+# VR 3D crosshair: with RF_DEPTHHACK the sprite never shows in this renderer (verified headless:
+# drawn every frame, invisible; without the depth hack it renders). Draw it with normal depth,
+# 2 units in front of the hit surface so it isn't buried in walls or players.
+edit('cgame/cg_draw.c', '''	ent.renderfx = RF_DEPTHHACK | RF_CROSSHAIR;
+
+	VectorCopy(trace.endpos, ent.origin);
+''', '''	ent.renderfx = RF_CROSSHAIR;	// OpenArena VR: no RF_DEPTHHACK (sprite was invisible with it)
+
+	VectorMA(trace.endpos, -2.0f, viewaxis[0], ent.origin);
+''')
+# OpenArena's default crosshair 4 ('e') is a tiny dot; 6 ('g') is a cross with a centre dot
+edit('cgame/cg_main.c', '{ &cg_drawCrosshair, "cg_drawCrosshair", "4", CVAR_ARCHIVE},',
+     '{ &cg_drawCrosshair, "cg_drawCrosshair", "6", CVAR_ARCHIVE},	// OpenArena VR: cross, not the tiny dot')

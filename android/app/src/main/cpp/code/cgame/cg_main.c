@@ -349,7 +349,7 @@ static cvarTable_t cvarTable[] = {// bk001129
 	{ &cg_drawAmmoWarning, "cg_drawAmmoWarning", "1", CVAR_ARCHIVE},
 	{ &cg_drawAttacker, "cg_drawAttacker", "1", CVAR_ARCHIVE},
 	{ &cg_drawSpeed, "cg_drawSpeed", "0", CVAR_ARCHIVE},
-	{ &cg_drawCrosshair, "cg_drawCrosshair", "4", CVAR_ARCHIVE},
+	{ &cg_drawCrosshair, "cg_drawCrosshair", "6", CVAR_ARCHIVE},	// OpenArena VR: cross, not the tiny dot
 	{ &cg_drawCrosshairNames, "cg_drawCrosshairNames", "0", CVAR_ARCHIVE },
 	{ &cg_fragMessage, "cg_fragMessage", "1", CVAR_ARCHIVE },
 	{ &cg_drawRewards, "cg_drawRewards", "1", CVAR_ARCHIVE},

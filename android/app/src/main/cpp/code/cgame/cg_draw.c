@@ -2998,9 +2998,9 @@ static void CG_DrawCrosshair3D(void) {
 */
 	memset(&ent, 0, sizeof (ent));
 	ent.reType = RT_SPRITE;
-	ent.renderfx = RF_DEPTHHACK | RF_CROSSHAIR;
+	ent.renderfx = RF_CROSSHAIR;	// OpenArena VR: no RF_DEPTHHACK (sprite was invisible with it)
 
-	VectorCopy(trace.endpos, ent.origin);
+	VectorMA(trace.endpos, -2.0f, viewaxis[0], ent.origin);
 
 	// scale the crosshair so it appears the same size for all distances
 	ent.radius = w / 640 * xmax * trace.fraction * maxdist / zProj;
