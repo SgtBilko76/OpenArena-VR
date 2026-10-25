@@ -9,6 +9,8 @@
 #include "vr_input.h"
 #include "vr_types.h"
 
+extern int vr_extRefreshRate;	// OpenArena VR / PICO
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -244,8 +246,9 @@ void VR_InitRenderer( engine_t* engine ) {
     OXR(xrGetViewConfigurationProperties(
             engine->appState.Instance, engine->appState.SystemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, &engine->appState.ViewportConfig));
 
-    // Get the supported display refresh rates for the system.
-    {
+    // Get the supported display refresh rates for the system (XR_FB_display_refresh_rate:
+    // Meta only; PICO runs at its own fixed rate).
+    if (vr_extRefreshRate) {
         PFN_xrEnumerateDisplayRefreshRatesFB pfnxrEnumerateDisplayRefreshRatesFB = NULL;
         OXR(xrGetInstanceProcAddr(
                 engine->appState.Instance,
