@@ -31,6 +31,8 @@ Get the APK from the [Releases](https://github.com/SgtBilko76/OpenArena-VR/relea
 
 ## Controls
 
+![OpenArena-VR controller mapping](docs/controls.webp)
+
 | Input | Action |
 |---|---|
 | Right trigger | Fire |
